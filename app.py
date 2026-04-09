@@ -60,7 +60,7 @@ def get_employee_data(emp_id):
             "fields": fields
         })
 
-    # 3. 查各附表真实数据
+    # 3. 查各附表真实数据 (查询字段需严格对应 form_appendix_col 的 field_key)
 
     family_data = [dict(r) for r in conn.execute("""
         SELECT relation, real_name, birth_date, political_status,
@@ -69,41 +69,38 @@ def get_employee_data(emp_id):
     """, (emp_id,)).fetchall()]
 
     work_exp_data = [dict(r) for r in conn.execute("""
-        SELECT company_name, industry, company_type, position, 
-               start_date, end_date, leave_reason, reference_person, reference_phone
+        SELECT start_date, end_date, company_name, industry, company_type, position, 
+               leave_reason, reference_person, reference_phone
         FROM work_experience WHERE employee_id = ? ORDER BY start_date
     """, (emp_id,)).fetchall()]
 
-    # 合同表是唯一保留了 remark 的
     contracts_data = [dict(r) for r in conn.execute("""
         SELECT seq, contract_type, start_date, end_date, remark
         FROM contract_record WHERE employee_id = ? ORDER BY seq
     """, (emp_id,)).fetchall()]
 
     training_data = [dict(r) for r in conn.execute("""
-        SELECT training_name, training_type, training_org,
-               start_date, end_date, result, cert_obtained
+        SELECT start_date, end_date, training_name, training_type, training_org, result, cert_obtained
         FROM training_record WHERE employee_id = ? ORDER BY start_date
     """, (emp_id,)).fetchall()]
 
+    # (已修改) 奖惩记录不再查询 amount 和 document_no
     rewards_data = [dict(r) for r in conn.execute("""
-        SELECT record_type, record_date, category, reason, amount, issuer, document_no
+        SELECT record_date, record_type, category, reason, issuer
         FROM reward_punishment_record WHERE employee_id = ? ORDER BY record_date
     """, (emp_id,)).fetchall()]
 
     education_data = [dict(r) for r in conn.execute("""
-        SELECT school_name, major, degree_level, degree_type, degree_status, 
-               school_type, study_duration, start_date, graduation_date, is_highest
+        SELECT start_date, graduation_date, school_name, major, degree_level, degree_type, 
+               degree_status, school_type, study_duration, is_highest
         FROM education_record WHERE employee_id = ? ORDER BY start_date
     """, (emp_id,)).fetchall()]
 
     certificates_data = [dict(r) for r in conn.execute("""
-        SELECT cert_category, cert_class, cert_major, cert_level, cert_name, issue_date, expire_date
-        FROM certificate_record WHERE employee_id = ?
-        ORDER BY cert_category, issue_date DESC
+        SELECT issue_date, expire_date, cert_category, cert_class, cert_major, cert_level, cert_name
+        FROM certificate_record WHERE employee_id = ? ORDER BY cert_category, issue_date DESC
     """, (emp_id,)).fetchall()]
 
-    # 职业生涯时间线：直接映射出 job_level_class 字段（合并替代了分离开的职级/职类）
     career_data = [dict(r) for r in conn.execute("""
         SELECT
             start_date || ' ~ ' || COALESCE(end_date, '至今') AS period,
@@ -117,6 +114,12 @@ def get_employee_data(emp_id):
             change_reason AS change_type
         FROM employment_record
         WHERE employee_id = ? ORDER BY start_date
+    """, (emp_id,)).fetchall()]
+
+    # (新增) 薪酬调整附表
+    salary_changes_data = [dict(r) for r in conn.execute("""
+        SELECT period, company, dept, position, job_level, job_class, job_level_class, change_reason
+        FROM salary_change_record WHERE employee_id = ? ORDER BY period
     """, (emp_id,)).fetchall()]
 
     # 4. 查附表动态排版规则
@@ -152,6 +155,7 @@ def get_employee_data(emp_id):
             "training":      training_data,
             "rewards":       rewards_data,
             "career":        career_data,
+            "salary_changes": salary_changes_data
         },
         "appendixLayout": appendix_layout
     })
