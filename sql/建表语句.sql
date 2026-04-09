@@ -113,6 +113,8 @@ CREATE TABLE "education_record" (
   "major" TEXT,
   "minor_major" TEXT,
   "research_direction" TEXT,
+  "start_date" TEXT,
+  "study_duration" REAL,
   "graduation_date" TEXT,
   "diploma_no" TEXT,
   "degree_cert_no" TEXT,
