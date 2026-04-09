@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=820, user-scalable=yes">
-    <title>员工电子档案</title>
+    <title>员工人事信息档案</title>
     <style>
         /* ========================================================= */
         /* 完全复刻 Demo 样式逻辑                                     */
@@ -31,17 +31,28 @@
             table-layout: fixed; /* 必须固定布局以对齐 colgroup */
         }
         table.ft td {
-            border: 1px solid #aaa; padding: 5px 6px;
-            vertical-align: middle; word-break: break-all; overflow: hidden;
-            height: 32px;
+            border: 1px solid #aaa;
+            padding: 3px 4px;        /* 从 5px 6px 改为 3px 4px */
+            vertical-align: middle;
+            word-break: break-all;
+            overflow: hidden;
+            height: 24px;            /* 从 32px 改为 24px */
         }
+
         table.ft .lbl {
-            background: #fafafa; color: #444;
-            font-weight: 500; text-align: center; font-size: 12px;
+            background: #fafafa;
+            color: #444;
+            font-weight: 500;
+            text-align: center;
+            font-size: 10px;         /* 从 12px 改为 11px */
         }
+
         table.ft .val {
-            color: #222; font-size: 12px; background: #fff;
-            text-align: left; padding-left: 8px;
+            color: #222;
+            font-size: 10px;         /* 从 12px 改为 11px */
+            background: #fff;
+            text-align: left;
+            padding-left: 6px;       /* 从 8px 改为 6px */
         }
 
         /* 模块标题栏（居中蓝色） */
@@ -49,8 +60,8 @@
             background: #e8f0fe;
             color: #1a3a8f;
             font-weight: 600;
-            font-size: 13px;
-            padding: 8px 12px;
+            font-size: 12px;         /* 从 13px 改为 12px */
+            padding: 5px 12px;       /* 从 8px 改为 5px */
             border-color: #aab8e0;
             text-align: center;
         }
@@ -78,7 +89,7 @@
 <body>
 
 <div class="form-container">
-    <div class="form-main-title">员工个人信息登记表</div>
+    <div class="form-main-title">员工人事信息档案</div>
 
     <div id="loading" class="loading">正在加载档案数据...</div>
 
@@ -300,7 +311,13 @@
                     const td = document.createElement('td');
                     td.className = 'val';
                     td.colSpan = col.colspan;
-                    td.textContent = rowItem[col.key] || '';
+
+                    let cellVal = rowItem[col.key];
+                    if (col.key === 'is_highest') {
+                        cellVal = cellVal == 1 ? '✓' : '';
+                    }
+
+                    td.textContent = cellVal ?? '';  // ← 必须用 cellVal，不能用 rowItem[col.key]
                     tr.appendChild(td);
                 });
                 tbody.appendChild(tr);

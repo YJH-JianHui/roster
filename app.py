@@ -34,7 +34,7 @@ def get_employee_data(emp_id):
         return jsonify({"error": "Employee not found"}), 404
     profile_data = dict(profile_row)
 
-    # 2. 查主表 24 栅格排版规则
+    # 2. 查主表排版规则
     layout_groups = []
     groups_raw = conn.execute(
         "SELECT id, group_key, group_label FROM form_group "
@@ -61,42 +61,49 @@ def get_employee_data(emp_id):
         })
 
     # 3. 查各附表真实数据
-    #    ⚠️ 关键：SELECT 字段名必须和 form_appendix_col.field_key 完全一致，不能随意起别名
 
-    # 家庭成员
     family_data = [dict(r) for r in conn.execute("""
         SELECT relation, real_name, birth_date, political_status,
                education_level, work_unit, position, phone
         FROM family_member WHERE employee_id = ? ORDER BY id
     """, (emp_id,)).fetchall()]
 
-    # 入职前工作经历
     work_exp_data = [dict(r) for r in conn.execute("""
-        SELECT company_name, position, start_date, end_date,
-               leave_reason, reference_person
+        SELECT company_name, industry, company_type, position, 
+               start_date, end_date, leave_reason, reference_person, reference_phone
         FROM work_experience WHERE employee_id = ? ORDER BY start_date
     """, (emp_id,)).fetchall()]
 
-    # 合同签订记录
+    # 合同表是唯一保留了 remark 的
     contracts_data = [dict(r) for r in conn.execute("""
         SELECT seq, contract_type, start_date, end_date, remark
         FROM contract_record WHERE employee_id = ? ORDER BY seq
     """, (emp_id,)).fetchall()]
 
-    # 培训记录
     training_data = [dict(r) for r in conn.execute("""
         SELECT training_name, training_type, training_org,
-               start_date, end_date, result, cost
+               start_date, end_date, result, cert_obtained
         FROM training_record WHERE employee_id = ? ORDER BY start_date
     """, (emp_id,)).fetchall()]
 
-    # 奖惩记录
     rewards_data = [dict(r) for r in conn.execute("""
-        SELECT record_type, record_date, category, reason, amount, issuer
+        SELECT record_type, record_date, category, reason, amount, issuer, document_no
         FROM reward_punishment_record WHERE employee_id = ? ORDER BY record_date
     """, (emp_id,)).fetchall()]
 
-    # 职业生涯时间线（从 employment_record 动态构建）
+    education_data = [dict(r) for r in conn.execute("""
+        SELECT school_name, major, degree_level, degree_type, degree_status, 
+               school_type, study_duration, start_date, graduation_date, is_highest
+        FROM education_record WHERE employee_id = ? ORDER BY start_date
+    """, (emp_id,)).fetchall()]
+
+    certificates_data = [dict(r) for r in conn.execute("""
+        SELECT cert_category, cert_class, cert_major, cert_level, cert_name, issue_date, expire_date
+        FROM certificate_record WHERE employee_id = ?
+        ORDER BY cert_category, issue_date DESC
+    """, (emp_id,)).fetchall()]
+
+    # 职业生涯时间线：直接映射出 job_level_class 字段（合并替代了分离开的职级/职类）
     career_data = [dict(r) for r in conn.execute("""
         SELECT
             start_date || ' ~ ' || COALESCE(end_date, '至今') AS period,
@@ -105,8 +112,9 @@ def get_employee_data(emp_id):
                 CASE WHEN dept_level2 IS NOT NULL THEN ' > ' || dept_level2 ELSE '' END ||
                 CASE WHEN dept_level3 IS NOT NULL THEN ' > ' || dept_level3 ELSE '' END AS dept,
             position_name AS position,
+            job_level_class,
             record_type,
-            COALESCE(end_reason, '在职') AS end_reason
+            change_reason AS change_type
         FROM employment_record
         WHERE employee_id = ? ORDER BY start_date
     """, (emp_id,)).fetchall()]
@@ -136,12 +144,14 @@ def get_employee_data(emp_id):
         "data": profile_data,
         "layout": layout_groups,
         "appendixData": {
-            "contracts":    contracts_data,
-            "work_history": work_exp_data,
-            "family":       family_data,
-            "training":     training_data,
-            "rewards":      rewards_data,
-            "career":       career_data,
+            "contracts":     contracts_data,
+            "work_history":  work_exp_data,
+            "family":        family_data,
+            "education":     education_data,
+            "certificates":  certificates_data,
+            "training":      training_data,
+            "rewards":       rewards_data,
+            "career":        career_data,
         },
         "appendixLayout": appendix_layout
     })
