@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=820, user-scalable=yes">
+    <title>员工电子档案</title>
+    <style>
+        /* ========================================================= */
+        /* 完全复刻 Demo 样式逻辑                                     */
+        /* ========================================================= */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Microsoft YaHei', '微软雅黑', sans-serif; background: #f0f2f5; min-height: 100vh; padding: 40px 0; }
+
+        .form-container {
+            width: 794px;
+            min-width: 794px;
+            background: #fff;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            border-radius: 4px;
+            padding: 40px;
+            margin: 0 auto;
+        }
+        .form-main-title {
+            text-align: center; font-size: 18px; font-weight: 700;
+            color: #111; margin-bottom: 16px; letter-spacing: 2px;
+        }
+
+        /* ===== 表格核心：固定 24 列栅格系统 ===== */
+        table.ft {
+            width: 100%; border-collapse: collapse; font-size: 12px;
+            table-layout: fixed; /* 必须固定布局以对齐 colgroup */
+        }
+        table.ft td {
+            border: 1px solid #aaa; padding: 5px 6px;
+            vertical-align: middle; word-break: break-all; overflow: hidden;
+            height: 32px;
+        }
+        table.ft .lbl {
+            background: #fafafa; color: #444;
+            font-weight: 500; text-align: center; font-size: 12px;
+        }
+        table.ft .val {
+            color: #222; font-size: 12px; background: #fff;
+            text-align: left; padding-left: 8px;
+        }
+
+        /* 模块标题栏（居中蓝色） */
+        table.ft .sec-hd td {
+            background: #e8f0fe;
+            color: #1a3a8f;
+            font-weight: 600;
+            font-size: 13px;
+            padding: 8px 12px;
+            border-color: #aab8e0;
+            text-align: center;
+        }
+
+        /* 照片单元格样式 */
+        .photo-cell {
+            text-align: center; vertical-align: middle;
+            color: #bbb; font-size: 11px;
+            background: #fafafa; padding: 0 !important;
+        }
+        .photo-cell img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .photo-placeholder {
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            height: 100%; width: 100%; min-height: 120px; gap: 4px;
+        }
+        .photo-icon {
+            width: 28px; height: 28px; border: 1.5px dashed #ccc;
+            border-radius: 4px; display: flex; align-items: center; justify-content: center;
+        }
+
+        .loading { text-align: center; margin-top: 40px; font-size: 14px; color: #888; }
+    </style>
+</head>
+<body>
+
+<div class="form-container">
+    <div class="form-main-title">员工个人信息登记表</div>
+
+    <div id="loading" class="loading">正在加载档案数据...</div>
+
+    <div id="form-wrap" style="display: none;">
+        <table class="ft" id="main-table">
+            <colgroup id="grid-cols"></colgroup>
+            <tbody id="form-body"></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const EMP_ID = {{ emp_id }};
+    const TOTAL_COLS = 24;
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        // 初始化 24 栅格列宽
+        const colgroup = document.getElementById('grid-cols');
+        for(let i = 0; i < TOTAL_COLS; i++) {
+            const col = document.createElement('col');
+            col.style.width = (100 / TOTAL_COLS) + '%';
+            colgroup.appendChild(col);
+        }
+
+        try {
+            const response = await fetch(`/api/employee/${EMP_ID}`);
+            if (!response.ok) throw new Error("未找到员工记录");
+
+            const result = await response.json();
+
+            // 渲染主表信息
+            renderForm(result.data, result.layout);
+
+            // 渲染附表信息
+            renderAppendix(result.appendixData, result.appendixLayout);
+
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('form-wrap').style.display = 'block';
+
+        } catch (error) {
+            document.getElementById('loading').innerHTML = `<span style="color:red">${error.message}</span>`;
+        }
+    });
+
+    /**
+     * 判断数据是否有效（用于隐藏空字段/空模块）
+     */
+    function isValid(val) {
+        return val !== null && val !== undefined && val !== '' && val !== '—';
+    }
+
+    /**
+     * 主表单渲染引擎
+     */
+    function renderForm(data, groups) {
+        const tbody = document.getElementById('form-body');
+        tbody.innerHTML = '';
+
+        groups.forEach(group => {
+            // 1. 字段过滤：只保留有值的字段
+            const activeFields = group.fields.filter(f => {
+                if (f.isPhoto) return isValid(data[f.key]); // 照片位根据是否有路径显示
+                return isValid(data[f.key]);
+            });
+
+            // 2. 模块过滤：如果整个模块都没数据，直接跳过
+            if (activeFields.length === 0) return;
+
+            // 3. 渲染模块标题
+            const secTr = document.createElement('tr');
+            secTr.className = 'sec-hd';
+            secTr.innerHTML = `<td colspan="${TOTAL_COLS}">${group.title}</td>`;
+            tbody.appendChild(secTr);
+
+            // 4. 流式布局算法
+            let rowBuffer = [];
+            let usedCols = 0;
+            let photoWidth = 0;
+            let photoRemaining = 0;
+
+            const photoField = activeFields.find(f => f.isPhoto);
+            if (photoField) {
+                photoWidth = photoField.vc;
+                photoRemaining = photoField.minR;
+            }
+
+            activeFields.forEach((field) => {
+                if (field.isPhoto) return; // 照片格单独处理
+
+                // 计算字段固定占位 (lc+vc)，如果vc为0则为弹性格
+                const fieldFixedWeight = (field.lc || 0) + (field.vc || 0);
+                const currentLineLimit = (photoRemaining > 0) ? (TOTAL_COLS - photoWidth) : TOTAL_COLS;
+
+                // 换行判定
+                if (usedCols + fieldFixedWeight > currentLineLimit && rowBuffer.length > 0) {
+                    flushRow(tbody, rowBuffer, currentLineLimit, data, photoField, photoRemaining);
+                    rowBuffer = [];
+                    usedCols = 0;
+                    if (photoRemaining > 0) photoRemaining--;
+                }
+                rowBuffer.push(field);
+                usedCols += fieldFixedWeight;
+            });
+
+            // 处理尾行
+            if (rowBuffer.length > 0) {
+                const currentLineLimit = (photoRemaining > 0) ? (TOTAL_COLS - photoWidth) : TOTAL_COLS;
+                flushRow(tbody, rowBuffer, currentLineLimit, data, photoField, photoRemaining);
+            }
+        });
+    }
+
+    /**
+     * 将缓冲区数据渲染为一行，并处理弹性补齐
+     */
+    function flushRow(tbody, items, available, data, photoField, photoRowStatus) {
+        const tr = document.createElement('tr');
+
+        // 插入照片格逻辑：仅在照片块的第一行插入
+        if (photoField && photoRowStatus === photoField.minR) {
+            const ptd = document.createElement('td');
+            ptd.className = 'photo-cell';
+            ptd.rowSpan = photoField.minR;
+            ptd.colSpan = photoField.vc;
+            ptd.innerHTML = data[photoField.key] ? `<img src="${data[photoField.key]}">` : `
+                <div class="photo-placeholder">
+                    <div class="photo-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5" style="width:16px;height:16px;">
+                            <rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M9 5l1.5-2h3L15 5"/>
+                        </svg>
+                    </div>
+                    <span style="transform: scale(0.9);">照片免冠</span>
+                </div>`;
+            tr.appendChild(ptd);
+        }
+
+        // 计算弹性宽度分配
+        let fixedSum = 0;
+        let autoCount = 0;
+        items.forEach(it => {
+            fixedSum += (it.lc || 0) + (it.vc || 0);
+            if (!it.vc || it.vc === 0) autoCount++;
+        });
+
+        let leftover = available - fixedSum;
+        let baseAuto = autoCount > 0 ? Math.floor(leftover / autoCount) : 0;
+        let remainderAuto = autoCount > 0 ? leftover % autoCount : 0;
+
+        items.forEach((it, idx) => {
+            // 标签
+            if (it.lc > 0) {
+                const tdL = document.createElement('td');
+                tdL.className = 'lbl';
+                tdL.colSpan = it.lc;
+                tdL.textContent = it.label;
+                tr.appendChild(tdL);
+            }
+
+            // 值
+            const tdV = document.createElement('td');
+            tdV.className = 'val';
+
+            let finalVc = it.vc || 0;
+            if (!it.vc || it.vc === 0) {
+                finalVc = baseAuto + (remainderAuto > 0 ? 1 : 0);
+                remainderAuto--;
+            }
+
+            // 【Demo核心补齐逻辑】：如果一行不满，把多出的空间补给最后一个格子，确保对齐
+            const isLast = (idx === items.length - 1);
+            if (isLast && leftover > 0 && autoCount === 0) {
+                finalVc += leftover;
+            } else if (isLast && remainderAuto > 0) {
+                finalVc += remainderAuto;
+            }
+
+            tdV.colSpan = finalVc;
+            tdV.textContent = data[it.key] || ' ';
+            tr.appendChild(tdV);
+        });
+
+        tbody.appendChild(tr);
+    }
+
+    /**
+     * 附表渲染逻辑：无数据则完全不显示该模块
+     */
+    function renderAppendix(appendixData, appendixLayout) {
+        if (!appendixLayout) return;
+        const tbody = document.getElementById('form-body');
+
+        appendixLayout.forEach(config => {
+            const tableData = appendixData[config.key] || [];
+
+            // 无数据则跳过该模块标题和内容
+            if (tableData.length === 0) return;
+
+            // 1. 标题
+            const titleRow = document.createElement('tr');
+            titleRow.className = 'sec-hd';
+            titleRow.innerHTML = `<td colspan="${TOTAL_COLS}">${config.title}</td>`;
+            tbody.appendChild(titleRow);
+
+            // 2. 动态表头
+            const headerRow = document.createElement('tr');
+            config.columns.forEach(col => {
+                const td = document.createElement('td');
+                td.className = 'lbl';
+                td.colSpan = col.colspan;
+                td.textContent = col.label;
+                headerRow.appendChild(td);
+            });
+            tbody.appendChild(headerRow);
+
+            // 3. 数据行
+            tableData.forEach(rowItem => {
+                const tr = document.createElement('tr');
+                config.columns.forEach(col => {
+                    const td = document.createElement('td');
+                    td.className = 'val';
+                    td.colSpan = col.colspan;
+                    td.textContent = rowItem[col.key] || '';
+                    tr.appendChild(td);
+                });
+                tbody.appendChild(tr);
+            });
+        });
+    }
+</script>
+
+</body>
+</html>
