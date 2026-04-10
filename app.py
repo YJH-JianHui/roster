@@ -17,18 +17,18 @@ def index():
     return "<h1>HR 系统运行中</h1><p>请访问 <a href='/profile/1'>/profile/1</a> 查看员工完整档案。</p>"
 
 
-@app.route('/profile/<int:emp_id>')
-def show_profile(emp_id):
-    return render_template('profile.html', emp_id=emp_id)
+@app.route('/profile/<id_card_no>')
+def show_profile(id_card_no):
+    return render_template('profile.html', id_card_no=id_card_no)
 
 
-@app.route('/api/employee/<int:emp_id>')
-def get_employee_data(emp_id):
+@app.route('/api/employee/<id_card_no>')
+def get_employee_data(id_card_no):
     conn = get_db_connection()
 
     # 1. 查主表快照视图
     profile_row = conn.execute(
-        "SELECT * FROM vw_employee_profile WHERE employee_id = ?", (emp_id,)
+        "SELECT * FROM vw_employee_profile WHERE id_card_no = ?", (id_card_no,)
     ).fetchone()
     if not profile_row:
         conn.close()
@@ -66,40 +66,40 @@ def get_employee_data(emp_id):
     family_data = [dict(r) for r in conn.execute("""
         SELECT relation, real_name, birth_date, political_status,
                education_level, work_unit, position, phone
-        FROM family_member WHERE employee_id = ? ORDER BY id
+        FROM family_member WHERE id_card_no = ? ORDER BY id
     """, (emp_id,)).fetchall()]
 
     work_exp_data = [dict(r) for r in conn.execute("""
         SELECT start_date, end_date, company_name, industry, company_type, position, 
                leave_reason, reference_person, reference_phone
-        FROM work_experience WHERE employee_id = ? ORDER BY start_date
+        FROM work_experience WHERE id_card_no = ? ORDER BY start_date
     """, (emp_id,)).fetchall()]
 
     contracts_data = [dict(r) for r in conn.execute("""
         SELECT seq, contract_type, start_date, end_date, remark
-        FROM contract_record WHERE employee_id = ? ORDER BY seq
+        FROM contract_record WHERE id_card_no = ? ORDER BY seq
     """, (emp_id,)).fetchall()]
 
     training_data = [dict(r) for r in conn.execute("""
         SELECT start_date, end_date, training_name, training_type, training_org, result, cert_obtained
-        FROM training_record WHERE employee_id = ? ORDER BY start_date
+        FROM training_record WHERE id_card_no = ? ORDER BY start_date
     """, (emp_id,)).fetchall()]
 
     # (已修改) 奖惩记录不再查询 amount 和 document_no
     rewards_data = [dict(r) for r in conn.execute("""
         SELECT record_date, record_type, category, reason, issuer
-        FROM reward_punishment_record WHERE employee_id = ? ORDER BY record_date
+        FROM reward_punishment_record WHERE id_card_no = ? ORDER BY record_date
     """, (emp_id,)).fetchall()]
 
     education_data = [dict(r) for r in conn.execute("""
         SELECT start_date, graduation_date, school_name, major, degree_level, degree_type, 
                degree_status, school_type, study_duration, is_highest
-        FROM education_record WHERE employee_id = ? ORDER BY start_date
+        FROM education_record WHERE id_card_no = ? ORDER BY start_date
     """, (emp_id,)).fetchall()]
 
     certificates_data = [dict(r) for r in conn.execute("""
         SELECT issue_date, expire_date, cert_category, cert_class, cert_major, cert_level, cert_name
-        FROM certificate_record WHERE employee_id = ? ORDER BY cert_category, issue_date DESC
+        FROM certificate_record WHERE id_card_no = ? ORDER BY cert_category, issue_date DESC
     """, (emp_id,)).fetchall()]
 
     career_data = [dict(r) for r in conn.execute("""
@@ -114,13 +114,13 @@ def get_employee_data(emp_id):
             record_type,
             change_reason AS change_type
         FROM employment_record
-        WHERE employee_id = ? ORDER BY start_date
+        WHERE id_card_no = ? ORDER BY start_date
     """, (emp_id,)).fetchall()]
 
     # (新增) 薪酬调整附表
     salary_changes_data = [dict(r) for r in conn.execute("""
         SELECT period, company, dept, position, job_level, job_class, job_level_class, change_reason
-        FROM salary_change_record WHERE employee_id = ? ORDER BY period
+        FROM salary_change_record WHERE id_card_no = ? ORDER BY period
     """, (emp_id,)).fetchall()]
 
     # 4. 查附表动态排版规则
