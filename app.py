@@ -1,9 +1,10 @@
 import sqlite3
 from flask import Flask, render_template, jsonify
+from import_routes import import_bp
 
 app = Flask(__name__)
 DB_FILE = 'data/DB.db'
-
+app.register_blueprint(import_bp)
 
 def get_db_connection():
     conn = sqlite3.connect(DB_FILE)

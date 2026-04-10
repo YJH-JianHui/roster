@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>员工档案导入</title>
+<style>
+:root {
+  --bg:        #0f1117;
+  --surface:   #1a1d27;
+  --surface2:  #222638;
+  --border:    #2e3352;
+  --accent:    #4f7cff;
+  --accent2:   #7b5ea7;
+  --green:     #34d399;
+  --red:       #f87171;
+  --yellow:    #fbbf24;
+  --text:      #e2e8f0;
+  --text-dim:  #8892a4;
+  --radius:    12px;
+  --font:      'Segoe UI', 'PingFang SC', '微软雅黑', sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  min-height: 100vh;
+  padding: 40px 20px;
+}
+
+/* ── 顶部 ───────────────────────────────── */
+.top-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 36px;
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.top-bar a {
+  color: var(--text-dim);
+  text-decoration: none;
+  font-size: 13px;
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  transition: all .2s;
+}
+.top-bar a:hover { color: var(--text); border-color: var(--accent); }
+.page-title {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: .5px;
+  background: linear-gradient(135deg, #fff 30%, var(--accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ── 主容器 ─────────────────────────────── */
+.container {
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ── 卡片 ───────────────────────────────── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px 32px;
+}
+.card-title {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 20px;
+}
+
+/* ── 拖拽上传区 ─────────────────────────── */
+.drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: 10px;
+  padding: 52px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: all .25s;
+  position: relative;
+}
+.drop-zone.drag-over {
+  border-color: var(--accent);
+  background: rgba(79,124,255,.06);
+}
+.drop-zone input[type=file] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.drop-icon {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 16px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.drop-icon svg { width: 26px; height: 26px; fill: #fff; }
+.drop-title { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+.drop-sub { font-size: 13px; color: var(--text-dim); }
+
+/* 文件已选 */
+.file-chosen {
+  display: none;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  background: var(--surface2);
+  border-radius: 8px;
+  margin-top: 16px;
+}
+.file-chosen.show { display: flex; }
+.file-icon {
+  width: 38px; height: 38px; background: #1d6f42;
+  border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.file-icon svg { width: 20px; height: 20px; fill: #fff; }
+.file-info { flex: 1; min-width: 0; }
+.file-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.file-size { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+.file-remove {
+  background: none; border: none; color: var(--text-dim);
+  cursor: pointer; padding: 4px; border-radius: 4px; transition: color .2s;
+  flex-shrink: 0;
+}
+.file-remove:hover { color: var(--red); }
+.file-remove svg { width: 16px; height: 16px; }
+
+/* ── 说明区 ─────────────────────────────── */
+.hint-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+.hint-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--surface2);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+.hint-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent); flex-shrink: 0; margin-top: 4px;
+}
+
+/* ── 按钮 ───────────────────────────────── */
+.btn-row { display: flex; gap: 12px; justify-content: flex-end; margin-top: 8px; }
+.btn {
+  padding: 10px 28px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font);
+  cursor: pointer;
+  border: none;
+  transition: all .2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent), #6a5cff);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(79,124,255,.35);
+}
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(79,124,255,.5);
+}
+.btn-primary:disabled {
+  opacity: .45; cursor: not-allowed; transform: none; box-shadow: none;
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+}
+.btn-ghost:hover { color: var(--text); border-color: var(--text-dim); }
+
+/* ── 进度条 ─────────────────────────────── */
+.progress-wrap { display: none; margin-top: 16px; }
+.progress-wrap.show { display: block; }
+.progress-bar-bg {
+  height: 6px; background: var(--surface2);
+  border-radius: 3px; overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  border-radius: 3px;
+  width: 0%;
+  transition: width .4s ease;
+  animation: shimmer 1.5s infinite;
+}
+@keyframes shimmer {
+  0%   { opacity: 1; }
+  50%  { opacity: .7; }
+  100% { opacity: 1; }
+}
+.progress-label {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 8px;
+  text-align: center;
+}
+
+/* ── 结果区 ─────────────────────────────── */
+#result-area { display: none; }
+#result-area.show { display: block; }
+
+.result-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 24px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  border: 1px solid;
+}
+.result-banner.success { background: rgba(52,211,153,.08); border-color: rgba(52,211,153,.3); }
+.result-banner.error   { background: rgba(248,113,113,.08); border-color: rgba(248,113,113,.3); }
+.banner-icon {
+  width: 40px; height: 40px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.result-banner.success .banner-icon { background: rgba(52,211,153,.15); }
+.result-banner.error   .banner-icon { background: rgba(248,113,113,.15); }
+.banner-icon svg { width: 22px; height: 22px; }
+.result-banner.success .banner-icon svg { stroke: var(--green); }
+.result-banner.error   .banner-icon svg { stroke: var(--red); }
+.banner-text { flex: 1; }
+.banner-title { font-size: 15px; font-weight: 600; margin-bottom: 3px; }
+.banner-sub   { font-size: 13px; color: var(--text-dim); }
+
+/* 汇总卡 */
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.summary-card {
+  background: var(--surface2);
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+}
+.summary-num { font-size: 28px; font-weight: 700; line-height: 1; margin-bottom: 6px; }
+.summary-label { font-size: 12px; color: var(--text-dim); }
+.num-green  { color: var(--green); }
+.num-blue   { color: var(--accent); }
+.num-yellow { color: var(--yellow); }
+.num-red    { color: var(--red); }
+
+/* Sheet 明细 */
+.sheet-list { display: flex; flex-direction: column; gap: 8px; }
+.sheet-row {
+  background: var(--surface2);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.sheet-header {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  cursor: pointer;
+  gap: 10px;
+  transition: background .2s;
+}
+.sheet-header:hover { background: rgba(255,255,255,.04); }
+.sheet-name { flex: 1; font-size: 14px; font-weight: 500; }
+.sheet-badges { display: flex; gap: 6px; align-items: center; }
+.badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+.badge-green  { background: rgba(52,211,153,.15); color: var(--green); }
+.badge-blue   { background: rgba(79,124,255,.15);  color: var(--accent); }
+.badge-yellow { background: rgba(251,191,36,.15);  color: var(--yellow); }
+.badge-red    { background: rgba(248,113,113,.15); color: var(--red); }
+.chevron { color: var(--text-dim); transition: transform .2s; }
+.chevron.open { transform: rotate(90deg); }
+
+.sheet-errors {
+  display: none;
+  padding: 0 16px 14px;
+}
+.sheet-errors.open { display: block; }
+.error-item {
+  display: flex;
+  gap: 10px;
+  padding: 8px 10px;
+  background: rgba(248,113,113,.06);
+  border-left: 3px solid var(--red);
+  border-radius: 0 6px 6px 0;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+.error-row { color: var(--red); font-weight: 600; flex-shrink: 0; }
+.error-msg { color: var(--text-dim); }
+
+/* ── 响应式 ─────────────────────────────── */
+@media (max-width: 600px) {
+  .summary-grid { grid-template-columns: repeat(2, 1fr); }
+  .card { padding: 20px; }
+}
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <a href="/">← 返回首页</a>
+  <span class="page-title">员工档案批量导入</span>
+</div>
+
+<div class="container">
+
+  <!-- 上传卡 -->
+  <div class="card">
+    <div class="card-title">选择导入文件</div>
+
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" accept=".xlsx">
+      <div class="drop-icon">
+        <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+      </div>
+      <div class="drop-title">拖拽文件到此处，或点击选择</div>
+      <div class="drop-sub">仅支持 .xlsx 格式 · 请使用系统提供的导入模板</div>
+    </div>
+
+    <div class="file-chosen" id="fileChosen">
+      <div class="file-icon">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg>
+      </div>
+      <div class="file-info">
+        <div class="file-name" id="fileName">—</div>
+        <div class="file-size" id="fileSize">—</div>
+      </div>
+      <button class="file-remove" id="fileRemove" title="移除文件">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressBar"></div></div>
+      <div class="progress-label" id="progressLabel">正在处理，请稍候…</div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-ghost" id="btnReset">重置</button>
+      <button class="btn btn-primary" id="btnImport" disabled>
+        <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>
+        开始导入
+      </button>
+    </div>
+  </div>
+
+  <!-- 导入规则说明 -->
+  <div class="card">
+    <div class="card-title">导入规则</div>
+    <div class="hint-grid">
+      <div class="hint-item"><span class="hint-dot"></span>员工主表必须存在，其他 Sheet 可选</div>
+      <div class="hint-item"><span class="hint-dot"></span>员工以身份证号为唯一标识</div>
+      <div class="hint-item"><span class="hint-dot"></span>已存在的记录按唯一键比对后更新</div>
+      <div class="hint-item"><span class="hint-dot"></span>新增记录直接追加，不覆盖历史</div>
+      <div class="hint-item"><span class="hint-dot"></span>任意 Sheet 出现错误则全部回滚</div>
+      <div class="hint-item"><span class="hint-dot"></span>橙色「姓名[冗余]」列导入时自动忽略</div>
+      <div class="hint-item"><span class="hint-dot"></span>空行自动跳过，不计入统计</div>
+      <div class="hint-item"><span class="hint-dot"></span>不会删除数据库中已有但 Excel 中没有的记录</div>
+    </div>
+  </div>
+
+  <!-- 结果区 -->
+  <div id="result-area">
+    <div class="card">
+      <div class="card-title">导入结果</div>
+
+      <!-- 状态横幅 -->
+      <div class="result-banner" id="resultBanner">
+        <div class="banner-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" id="bannerIconSvg"></svg>
+        </div>
+        <div class="banner-text">
+          <div class="banner-title" id="bannerTitle"></div>
+          <div class="banner-sub"  id="bannerSub"></div>
+        </div>
+      </div>
+
+      <!-- 汇总数字 -->
+      <div class="summary-grid">
+        <div class="summary-card">
+          <div class="summary-num num-green" id="numInserted">0</div>
+          <div class="summary-label">新增记录</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-num num-blue" id="numUpdated">0</div>
+          <div class="summary-label">更新记录</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-num num-yellow" id="numSkipped">0</div>
+          <div class="summary-label">跳过（无变化）</div>
+        </div>
+        <div class="summary-card">
+          <div class="summary-num num-red" id="numErrors">0</div>
+          <div class="summary-label">错误行数</div>
+        </div>
+      </div>
+
+      <!-- 各 Sheet 明细 -->
+      <div class="sheet-list" id="sheetList"></div>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+const fileInput   = document.getElementById('fileInput');
+const dropZone    = document.getElementById('dropZone');
+const fileChosen  = document.getElementById('fileChosen');
+const fileName    = document.getElementById('fileName');
+const fileSize    = document.getElementById('fileSize');
+const fileRemove  = document.getElementById('fileRemove');
+const btnImport   = document.getElementById('btnImport');
+const btnReset    = document.getElementById('btnReset');
+const progressWrap= document.getElementById('progressWrap');
+const progressBar = document.getElementById('progressBar');
+const progressLabel=document.getElementById('progressLabel');
+const resultArea  = document.getElementById('result-area');
+
+let selectedFile = null;
+
+// ── 文件选择 ───────────────────────────────
+function formatBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1024*1024) return (b/1024).toFixed(1) + ' KB';
+  return (b/1024/1024).toFixed(2) + ' MB';
+}
+
+function setFile(f) {
+  if (!f || !f.name.endsWith('.xlsx')) {
+    alert('请选择 .xlsx 格式的文件');
+    return;
+  }
+  selectedFile = f;
+  fileName.textContent = f.name;
+  fileSize.textContent = formatBytes(f.size);
+  fileChosen.classList.add('show');
+  btnImport.disabled = false;
+  resultArea.classList.remove('show');
+}
+
+fileInput.addEventListener('change', e => { if (e.target.files[0]) setFile(e.target.files[0]); });
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f) setFile(f);
+});
+
+fileRemove.addEventListener('click', e => {
+  e.stopPropagation();
+  reset();
+});
+
+function reset() {
+  selectedFile = null;
+  fileInput.value = '';
+  fileChosen.classList.remove('show');
+  btnImport.disabled = true;
+  progressWrap.classList.remove('show');
+  progressBar.style.width = '0%';
+  resultArea.classList.remove('show');
+}
+
+btnReset.addEventListener('click', reset);
+
+// ── 进度动画（模拟，后端是同步的） ─────────
+let progressTimer = null;
+function startProgress() {
+  progressWrap.classList.add('show');
+  progressBar.style.width = '0%';
+  let pct = 0;
+  progressTimer = setInterval(() => {
+    pct = Math.min(pct + Math.random() * 8, 90);
+    progressBar.style.width = pct + '%';
+    const labels = ['正在解析文件…','正在校验数据…','正在写入员工主表…','正在写入子表数据…','即将完成…'];
+    progressLabel.textContent = labels[Math.min(Math.floor(pct/20), labels.length-1)];
+  }, 300);
+}
+function finishProgress() {
+  clearInterval(progressTimer);
+  progressBar.style.width = '100%';
+  progressLabel.textContent = '处理完成';
+  setTimeout(() => progressWrap.classList.remove('show'), 800);
+}
+
+// ── 渲染结果 ───────────────────────────────
+function renderResult(data) {
+  const success = data.success;
+  const banner  = document.getElementById('resultBanner');
+  const iconSvg = document.getElementById('bannerIconSvg');
+
+  banner.className = 'result-banner ' + (success ? 'success' : 'error');
+  document.getElementById('bannerTitle').textContent = success ? '导入成功' : '导入失败，已回滚';
+  document.getElementById('bannerSub').textContent   = data.message;
+
+  if (success) {
+    iconSvg.innerHTML = '<polyline points="20 6 9 17 4 12"/>';
+  } else {
+    iconSvg.innerHTML = '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>';
+  }
+
+  const t = data.total || {};
+  document.getElementById('numInserted').textContent = t.inserted    || 0;
+  document.getElementById('numUpdated').textContent  = t.updated     || 0;
+  document.getElementById('numSkipped').textContent  = t.skipped     || 0;
+  document.getElementById('numErrors').textContent   = t.error_count || 0;
+
+  // Sheet 明细
+  const list = document.getElementById('sheetList');
+  list.innerHTML = '';
+  const results = data.results || {};
+
+  Object.entries(results).forEach(([sheet, stat]) => {
+    const hasErr = stat.errors && stat.errors.length > 0;
+    const row = document.createElement('div');
+    row.className = 'sheet-row';
+
+    const badges = [];
+    if (stat.inserted) badges.push(`<span class="badge badge-green">+${stat.inserted} 新增</span>`);
+    if (stat.updated)  badges.push(`<span class="badge badge-blue">↑${stat.updated} 更新</span>`);
+    if (stat.skipped)  badges.push(`<span class="badge badge-yellow">◌${stat.skipped} 跳过</span>`);
+    if (hasErr)        badges.push(`<span class="badge badge-red">✕${stat.errors.length} 错误</span>`);
+    if (!stat.inserted && !stat.updated && !stat.skipped && !hasErr)
+      badges.push(`<span class="badge badge-yellow">无数据</span>`);
+
+    row.innerHTML = `
+      <div class="sheet-header" onclick="toggleSheet(this)">
+        <span class="sheet-name">${sheet}</span>
+        <div class="sheet-badges">${badges.join('')}</div>
+        ${hasErr ? '<span class="chevron">›</span>' : ''}
+      </div>
+      ${hasErr ? `<div class="sheet-errors">
+        ${stat.errors.map(e => `
+          <div class="error-item">
+            <span class="error-row">第 ${e.row} 行</span>
+            <span class="error-msg">${e.msg}</span>
+          </div>`).join('')}
+      </div>` : ''}
+    `;
+    list.appendChild(row);
+  });
+
+  resultArea.classList.add('show');
+  resultArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function toggleSheet(header) {
+  const chevron = header.querySelector('.chevron');
+  const errors  = header.nextElementSibling;
+  if (!chevron || !errors) return;
+  const isOpen = errors.classList.toggle('open');
+  chevron.classList.toggle('open', isOpen);
+}
+
+// ── 提交 ───────────────────────────────────
+btnImport.addEventListener('click', async () => {
+  if (!selectedFile) return;
+
+  btnImport.disabled = true;
+  btnReset.disabled  = true;
+  startProgress();
+
+  const fd = new FormData();
+  fd.append('file', selectedFile);
+
+  try {
+    const res  = await fetch('/api/import', { method: 'POST', body: fd });
+    const data = await res.json();
+    finishProgress();
+    renderResult(data);
+  } catch (err) {
+    finishProgress();
+    renderResult({
+      success: false,
+      message: '网络请求失败：' + err.message,
+      total:   { inserted: 0, updated: 0, skipped: 0, error_count: 1 },
+      results: {}
+    });
+  } finally {
+    btnImport.disabled = false;
+    btnReset.disabled  = false;
+  }
+});
+</script>
+</body>
+</html>

@@ -42,7 +42,6 @@ CREATE TABLE "employee" (
   "height" REAL,
   "weight" REAL,
   "blood_type" TEXT,
-  "vision" TEXT,
   "id_card_authority" TEXT,
   "id_card_issue_date" TEXT,
   "id_card_expire_date" TEXT,
@@ -276,7 +275,7 @@ SELECT
     CAST((julianday('now') - julianday(e.birth_date || '-01')) / 365.25 AS INTEGER) AS age,
     e.birth_date, e.ethnicity, e.native_place AS native, e.birthplace, e.former_name AS alias,
     e.marital_status AS marital, e.political_status AS party, e.hometown_type AS domicile_type,
-    e.height, e.weight, e.blood_type, e.vision, e.phone AS mobile, e.email_personal AS email,
+    e.height, e.weight, e.blood_type, e.phone AS mobile, e.email_personal AS email,
     e.email_work, e.emergency_contact_name AS emergency, e.emergency_contact_relation AS emergency_relation,
     e.emergency_contact_phone AS emergencyTel, e.current_status, e.id_card_no AS idNumber,
     e.id_card_authority, e.id_card_issue_date, e.id_card_expire_date,
@@ -406,8 +405,8 @@ INSERT INTO "form_appendix_col" (appendix_id, field_key, label, colspan, sort_or
 -- Appendix 6: 职称/职业资格 (原ID 5 -> 现ID 6)
 INSERT INTO "form_appendix_col" (appendix_id, field_key, label, colspan, sort_order) VALUES
 (6, 'issue_date', '取证时间', 3, 10), (6, 'expire_date', '到期时间', 3, 20), (6, 'cert_category', '资质类别', 3, 30),
-(6, 'cert_class', '资质类目', 3, 40), (6, 'cert_major', '所属专业', 4, 50), (6, 'cert_level', '等级', 3, 60),
-(6, 'cert_name', '资质名称', 5, 70);
+(6, 'cert_class', '资质类目', 4, 40), (6, 'cert_major', '所属专业', 4, 50), (6, 'cert_level', '等级', 3, 60),
+(6, 'cert_name', '资质名称', 4, 70);
 
 -- Appendix 7: 培训记录 (原ID 6 -> 现ID 7)
 INSERT INTO "form_appendix_col" (appendix_id, field_key, label, colspan, sort_order) VALUES
@@ -433,12 +432,12 @@ INSERT INTO "form_appendix_col" (appendix_id, field_key, label, colspan, sort_or
 
 INSERT INTO employee (
     real_name, id_card_no, gender, birth_date, ethnicity, political_status, hometown_type,
-    marital_status, native_place, birthplace, former_name, height, weight, blood_type, vision,
+    marital_status, native_place, birthplace, former_name, height, weight, blood_type,
     id_card_authority, id_card_issue_date, id_card_expire_date, current_status, phone, email_personal,
     email_work, emergency_contact_name, emergency_contact_relation, emergency_contact_phone, photo_path
 ) VALUES (
     '张伟', '530102198805151234', '男', '1988-05', '汉族', '中共党员', '城镇',
-    '已婚', '云南省昆明市', '云南省昆明市', '张小伟', 175.5, 70.2, 'A', '5.0/5.0',
+    '已婚', '云南省昆明市', '云南省昆明市', '张小伟', 175.5, 70.2, 'A',
     '昆明市公安局五华分局', '2010-06-01', '2030-06-01', '在职', '13888888888', 'zhangwei@gmail.com',
     'zhangwei@dingcheng.com', '王秀英', '母子', '13777777777', '/uploads/avatars/zhangwei.png'
 );
@@ -467,8 +466,8 @@ INSERT INTO employment_record (
 
 INSERT INTO contract_record (employment_record_id, employee_id, seq, contract_type, start_date, end_date, remark) VALUES
 ((SELECT id FROM employment_record WHERE start_date = '2012-03-01'), (SELECT id FROM employee WHERE id_card_no = '530102198805151234'), 1, '劳务协议', '2012-03-01', '2014-06-30', '外包支持协议'),
-((SELECT id FROM employment_record WHERE start_date = '2014-07-01'), (SELECT id FROM employee WHERE id_card_no = '530102198805151234'), 2, '固定期限', '2014-07-01', '2017-06-30', '首次正式签约3年'),
-((SELECT id FROM employment_record WHERE start_date = '2014-07-01'), (SELECT id FROM employee WHERE id_card_no = '530102198805151234'), 3, '无固定期限', '2017-07-01', '2099-12-31', '符合无固条件续签');
+((SELECT id FROM employment_record WHERE start_date = '2014-07-01'), (SELECT id FROM employee WHERE id_card_no = '530102198805151234'), 1, '固定期限', '2014-07-01', '2017-06-30', '首次正式签约3年'),
+((SELECT id FROM employment_record WHERE start_date = '2014-07-01'), (SELECT id FROM employee WHERE id_card_no = '530102198805151234'), 2, '无固定期限', '2017-07-01', '2099-12-31', '符合无固条件续签');
 
 INSERT INTO address_record (employee_id, address_type, province, city, district, address_detail, address_detail_extra, postal_code, hukou_type, is_current) VALUES
 ((SELECT id FROM employee WHERE id_card_no = '530102198805151234'), '户籍地', '云南省', '昆明市', '五华区', '护国路', '某街道某社区12号', '650031', '城镇', 1),
