@@ -306,8 +306,15 @@ SELECT
     e.current_status,
     e.id_card_no AS idNumber,
     e.id_card_authority, e.id_card_issue_date, e.id_card_expire_date,
-    COALESCE(CAST(e.height AS TEXT), '') || 'cm / ' ||
-    COALESCE(CAST(e.weight AS TEXT), '') || 'kg' AS height_weight,
+    CASE
+        WHEN e.height IS NOT NULL AND e.weight IS NOT NULL
+            THEN CAST(e.height AS TEXT) || 'cm / ' || CAST(e.weight AS TEXT) || 'kg'
+        WHEN e.height IS NOT NULL
+            THEN CAST(e.height AS TEXT) || 'cm'
+        WHEN e.weight IS NOT NULL
+            THEN CAST(e.weight AS TEXT) || 'kg'
+        ELSE NULL
+    END AS height_weight,
 
     emp.company AS current_company, emp.labor_relation_company,
     emp.dept_level1, emp.dept_level2, emp.dept_level3, emp.group_name,

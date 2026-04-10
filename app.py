@@ -3,6 +3,7 @@ from datetime import timedelta
 from flask import Flask, render_template, jsonify, session, redirect
 from import_routes import import_bp
 from auth_feishu import auth_bp, init_lark_client, require_login
+from feishu_sync import sync_bp, init_sync_config
 
 app = Flask(__name__)
 
@@ -15,12 +16,24 @@ FEISHU_APP_ID      = 'cli_a952d58519fb9bc4'
 FEISHU_APP_SECRET  = 'fI0doVKtNWNwv4SVTyxjPgZEFDwsh3vG'
 FEISHU_REDIRECT_URI = 'http://127.0.0.1:5000/auth/callback'
 
+# 飞书自定义字段的基础URL
+BASE_PROFILE_URL = 'http://127.0.0.1:5000'
+
 DB_FILE = 'data/DB.db'
 
 init_lark_client(FEISHU_APP_ID, FEISHU_APP_SECRET, FEISHU_REDIRECT_URI)
 
+init_sync_config(
+    app_id=FEISHU_APP_ID,
+    app_secret=FEISHU_APP_SECRET,
+    base_profile_url=BASE_PROFILE_URL,
+    db_file=DB_FILE,
+)
+
 app.register_blueprint(auth_bp)
 app.register_blueprint(import_bp)
+
+app.register_blueprint(sync_bp)
 
 
 def get_db_connection():

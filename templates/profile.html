@@ -5,9 +5,6 @@
     <meta name="viewport" content="width=820, user-scalable=yes">
     <title>员工人事信息档案</title>
     <style>
-        /* ========================================================= */
-        /* 完全复刻 Demo 样式逻辑                                     */
-        /* ========================================================= */
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Microsoft YaHei', '微软雅黑', sans-serif; background: #f0f2f5; min-height: 100vh; padding: 40px 0; }
 
@@ -25,18 +22,17 @@
             color: #111; margin-bottom: 16px; letter-spacing: 2px;
         }
 
-        /* ===== 表格核心：固定 24 列栅格系统 ===== */
         table.ft {
             width: 100%; border-collapse: collapse; font-size: 12px;
-            table-layout: fixed; /* 必须固定布局以对齐 colgroup */
+            table-layout: fixed;
         }
         table.ft td {
             border: 1px solid #aaa;
-            padding: 3px 4px;        /* 从 5px 6px 改为 3px 4px */
+            padding: 3px 4px;
             vertical-align: middle;
             word-break: break-all;
             overflow: hidden;
-            height: 24px;            /* 从 32px 改为 24px */
+            height: 24px;
         }
 
         table.ft .lbl {
@@ -44,29 +40,27 @@
             color: #444;
             font-weight: 500;
             text-align: center;
-            font-size: 10px;         /* 从 12px 改为 11px */
+            font-size: 10px;
         }
 
         table.ft .val {
             color: #222;
-            font-size: 10px;         /* 从 12px 改为 11px */
+            font-size: 10px;
             background: #fff;
             text-align: left;
-            padding-left: 6px;       /* 从 8px 改为 6px */
+            padding-left: 6px;
         }
 
-        /* 模块标题栏（居中蓝色） */
         table.ft .sec-hd td {
             background: #e8f0fe;
             color: #1a3a8f;
             font-weight: 600;
-            font-size: 12px;         /* 从 13px 改为 12px */
-            padding: 5px 12px;       /* 从 8px 改为 5px */
+            font-size: 12px;
+            padding: 5px 12px;
             border-color: #aab8e0;
             text-align: center;
         }
 
-        /* 照片单元格样式 */
         .photo-cell {
             text-align: center; vertical-align: middle;
             color: #bbb; font-size: 11px;
@@ -106,9 +100,8 @@
     const TOTAL_COLS = 24;
 
     document.addEventListener('DOMContentLoaded', async () => {
-        // 初始化 24 栅格列宽
         const colgroup = document.getElementById('grid-cols');
-        for(let i = 0; i < TOTAL_COLS; i++) {
+        for (let i = 0; i < TOTAL_COLS; i++) {
             const col = document.createElement('col');
             col.style.width = (100 / TOTAL_COLS) + '%';
             colgroup.appendChild(col);
@@ -120,10 +113,7 @@
 
             const result = await response.json();
 
-            // 渲染主表信息
             renderForm(result.data, result.layout);
-
-            // 渲染附表信息
             renderAppendix(result.appendixData, result.appendixLayout);
 
             document.getElementById('loading').style.display = 'none';
@@ -134,99 +124,134 @@
         }
     });
 
-    /**
-     * 判断数据是否有效（用于隐藏空字段/空模块）
-     */
     function isValid(val) {
         return val !== null && val !== undefined && val !== '' && val !== '—';
     }
 
     /**
      * 主表单渲染引擎
+     * 照片布局逻辑：
+     *   - 照片固定属于当前 group（基本信息），rowSpan = photoField.minR
+     *   - 照片旁边的列宽 = TOTAL_COLS - photoField.vc
+     *   - 先把非照片的有效字段用流式算法分成若干行（每行不超过照片旁可用列宽）
+     *   - 如果分出的行数 >= minR：正常渲染，超出照片的行用全宽
+     *   - 如果分出的行数 < minR：不足的行补空行（空 td 撑满）
+     *   - 没有照片字段：正常全宽流式渲染
      */
     function renderForm(data, groups) {
         const tbody = document.getElementById('form-body');
         tbody.innerHTML = '';
 
         groups.forEach(group => {
-            // 1. 字段过滤：只保留有值的字段
-            const activeFields = group.fields.filter(f => {
-                if (f.isPhoto) return isValid(data[f.key]); // 照片位根据是否有路径显示
-                return isValid(data[f.key]);
-            });
-
-            // 2. 模块过滤：如果整个模块都没数据，直接跳过
+            // 过滤有值的字段
+            const activeFields = group.fields.filter(f => isValid(data[f.key]));
             if (activeFields.length === 0) return;
 
-            // 3. 渲染模块标题
+            // 渲染模块标题
             const secTr = document.createElement('tr');
             secTr.className = 'sec-hd';
             secTr.innerHTML = `<td colspan="${TOTAL_COLS}">${group.title}</td>`;
             tbody.appendChild(secTr);
 
-            // 4. 流式布局算法
-            let rowBuffer = [];
-            let usedCols = 0;
-            let photoWidth = 0;
-            let photoRemaining = 0;
-
+            // 找照片字段
             const photoField = activeFields.find(f => f.isPhoto);
-            if (photoField) {
-                photoWidth = photoField.vc;
-                photoRemaining = photoField.minR;
+            const nonPhotoFields = activeFields.filter(f => !f.isPhoto);
+
+            if (!photoField) {
+                // 没有照片：普通全宽流式渲染
+                const rows = splitFieldsIntoRows(nonPhotoFields, TOTAL_COLS);
+                rows.forEach(rowFields => {
+                    flushRow(tbody, rowFields, TOTAL_COLS, data, null, false);
+                });
+                return;
             }
 
-            activeFields.forEach((field) => {
-                if (field.isPhoto) return; // 照片格单独处理
+            // ── 有照片的情况 ──
+            const photoMinR  = photoField.minR;  // 照片占的最小行数
+            const photoColW  = photoField.vc;     // 照片占的列数
+            const sideColW   = TOTAL_COLS - photoColW; // 照片旁可用列数
 
-                // 计算字段固定占位 (lc+vc)，如果vc为0则为弹性格
-                const fieldFixedWeight = (field.lc || 0) + (field.vc || 0);
-                const currentLineLimit = (photoRemaining > 0) ? (TOTAL_COLS - photoWidth) : TOTAL_COLS;
+            // 把非照片字段按照片旁宽度分行
+            const sideRows = splitFieldsIntoRows(nonPhotoFields, sideColW);
+            const totalSideRows = sideRows.length;
 
-                // 换行判定
-                if (usedCols + fieldFixedWeight > currentLineLimit && rowBuffer.length > 0) {
-                    flushRow(tbody, rowBuffer, currentLineLimit, data, photoField, photoRemaining);
-                    rowBuffer = [];
-                    usedCols = 0;
-                    if (photoRemaining > 0) photoRemaining--;
+            // 实际 rowSpan = max(photoMinR, totalSideRows)
+            const actualRowSpan = Math.max(photoMinR, totalSideRows);
+
+            // 渲染每一行
+            for (let r = 0; r < actualRowSpan; r++) {
+                const tr = document.createElement('tr');
+
+                // 第一行插入照片格（rowSpan 撑满所有行）
+                if (r === 0) {
+                    const ptd = document.createElement('td');
+                    ptd.className = 'photo-cell';
+                    ptd.rowSpan = actualRowSpan;
+                    ptd.colSpan = photoColW;
+                    ptd.innerHTML = data[photoField.key]
+                        ? `<img src="${data[photoField.key]}">`
+                        : `<div class="photo-placeholder">
+                               <div class="photo-icon">
+                                   <svg viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5" style="width:16px;height:16px;">
+                                       <rect x="3" y="5" width="18" height="14" rx="2"/>
+                                       <circle cx="12" cy="12" r="3"/>
+                                       <path d="M9 5l1.5-2h3L15 5"/>
+                                   </svg>
+                               </div>
+                               <span style="transform:scale(0.9);">照片免冠</span>
+                           </div>`;
+                    tr.appendChild(ptd);
                 }
-                rowBuffer.push(field);
-                usedCols += fieldFixedWeight;
-            });
 
-            // 处理尾行
-            if (rowBuffer.length > 0) {
-                const currentLineLimit = (photoRemaining > 0) ? (TOTAL_COLS - photoWidth) : TOTAL_COLS;
-                flushRow(tbody, rowBuffer, currentLineLimit, data, photoField, photoRemaining);
+                if (r < totalSideRows) {
+                    // 有字段：渲染这一行的字段（填满 sideColW）
+                    appendFieldCells(tr, sideRows[r], sideColW, data);
+                } else {
+                    // 字段不够：补空行（一个空 td 撑满）
+                    const emptyTd = document.createElement('td');
+                    emptyTd.className = 'val';
+                    emptyTd.colSpan = sideColW;
+                    emptyTd.textContent = '';
+                    tr.appendChild(emptyTd);
+                }
+
+                tbody.appendChild(tr);
             }
+
+            // 超出照片高度的字段行（totalSideRows > photoMinR 时已包含在 actualRowSpan 中，
+            // 但这些行已在上面循环中渲染完毕，此处无需额外处理）
         });
     }
 
     /**
-     * 将缓冲区数据渲染为一行，并处理弹性补齐
+     * 将字段列表按可用列宽切分成多行
+     * 每行字段的 (lc + vc) 之和不超过 availableCols
+     * vc=0 的弹性字段当作 1 列计入（布局时再弹性补齐）
      */
-    function flushRow(tbody, items, available, data, photoField, photoRowStatus) {
-        const tr = document.createElement('tr');
+    function splitFieldsIntoRows(fields, availableCols) {
+        const rows = [];
+        let currentRow = [];
+        let usedCols = 0;
 
-        // 插入照片格逻辑：仅在照片块的第一行插入
-        if (photoField && photoRowStatus === photoField.minR) {
-            const ptd = document.createElement('td');
-            ptd.className = 'photo-cell';
-            ptd.rowSpan = photoField.minR;
-            ptd.colSpan = photoField.vc;
-            ptd.innerHTML = data[photoField.key] ? `<img src="${data[photoField.key]}">` : `
-                <div class="photo-placeholder">
-                    <div class="photo-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5" style="width:16px;height:16px;">
-                            <rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M9 5l1.5-2h3L15 5"/>
-                        </svg>
-                    </div>
-                    <span style="transform: scale(0.9);">照片免冠</span>
-                </div>`;
-            tr.appendChild(ptd);
-        }
+        fields.forEach(field => {
+            const fieldWeight = (field.lc || 0) + (field.vc || 0) || 1;
+            if (usedCols + fieldWeight > availableCols && currentRow.length > 0) {
+                rows.push(currentRow);
+                currentRow = [];
+                usedCols = 0;
+            }
+            currentRow.push(field);
+            usedCols += fieldWeight;
+        });
 
-        // 计算弹性宽度分配
+        if (currentRow.length > 0) rows.push(currentRow);
+        return rows;
+    }
+
+    /**
+     * 向 tr 追加一行字段的单元格，弹性补齐到 availableCols
+     */
+    function appendFieldCells(tr, items, availableCols, data) {
         let fixedSum = 0;
         let autoCount = 0;
         items.forEach(it => {
@@ -234,7 +259,7 @@
             if (!it.vc || it.vc === 0) autoCount++;
         });
 
-        let leftover = available - fixedSum;
+        let leftover = availableCols - fixedSum;
         let baseAuto = autoCount > 0 ? Math.floor(leftover / autoCount) : 0;
         let remainderAuto = autoCount > 0 ? leftover % autoCount : 0;
 
@@ -255,27 +280,32 @@
             let finalVc = it.vc || 0;
             if (!it.vc || it.vc === 0) {
                 finalVc = baseAuto + (remainderAuto > 0 ? 1 : 0);
-                remainderAuto--;
+                if (remainderAuto > 0) remainderAuto--;
             }
 
-            // 【Demo核心补齐逻辑】：如果一行不满，把多出的空间补给最后一个格子，确保对齐
+            // 最后一个格子把剩余列补满
             const isLast = (idx === items.length - 1);
-            if (isLast && leftover > 0 && autoCount === 0) {
+            if (isLast && autoCount === 0 && leftover > 0) {
                 finalVc += leftover;
-            } else if (isLast && remainderAuto > 0) {
-                finalVc += remainderAuto;
             }
 
             tdV.colSpan = finalVc;
             tdV.textContent = data[it.key] || ' ';
             tr.appendChild(tdV);
         });
+    }
 
+    /**
+     * 普通行渲染（无照片时使用）
+     */
+    function flushRow(tbody, items, available, data, _photoField, _photoRowStatus) {
+        const tr = document.createElement('tr');
+        appendFieldCells(tr, items, available, data);
         tbody.appendChild(tr);
     }
 
     /**
-     * 附表渲染逻辑：无数据则完全不显示该模块
+     * 附表渲染
      */
     function renderAppendix(appendixData, appendixLayout) {
         if (!appendixLayout) return;
@@ -283,17 +313,13 @@
 
         appendixLayout.forEach(config => {
             const tableData = appendixData[config.key] || [];
-
-            // 无数据则跳过该模块标题和内容
             if (tableData.length === 0) return;
 
-            // 1. 标题
             const titleRow = document.createElement('tr');
             titleRow.className = 'sec-hd';
             titleRow.innerHTML = `<td colspan="${TOTAL_COLS}">${config.title}</td>`;
             tbody.appendChild(titleRow);
 
-            // 2. 动态表头
             const headerRow = document.createElement('tr');
             config.columns.forEach(col => {
                 const td = document.createElement('td');
@@ -304,7 +330,6 @@
             });
             tbody.appendChild(headerRow);
 
-            // 3. 数据行
             tableData.forEach(rowItem => {
                 const tr = document.createElement('tr');
                 config.columns.forEach(col => {
@@ -317,7 +342,7 @@
                         cellVal = cellVal == 1 ? '✓' : '';
                     }
 
-                    td.textContent = cellVal ?? '';  // ← 必须用 cellVal，不能用 rowItem[col.key]
+                    td.textContent = cellVal ?? '';
                     tr.appendChild(td);
                 });
                 tbody.appendChild(tr);
