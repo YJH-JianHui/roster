@@ -102,7 +102,7 @@
 </div>
 
 <script>
-    const EMP_ID = {{ emp_id }};
+    const FEISHU_ID = "{{ feishu_user_id }}";
     const TOTAL_COLS = 24;
 
     document.addEventListener('DOMContentLoaded', async () => {
@@ -115,7 +115,7 @@
         }
 
         try {
-            const response = await fetch(`/api/employee/${EMP_ID}`);
+            const response = await fetch(`/api/employee/${FEISHU_ID}`);
             if (!response.ok) throw new Error("未找到员工记录");
 
             const result = await response.json();
