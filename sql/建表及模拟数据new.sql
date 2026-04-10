@@ -159,13 +159,13 @@ CREATE TABLE "family_member" (
 CREATE TABLE "certificate_record" (
   "id_card_no"               TEXT NOT NULL,
   "cert_name"                TEXT NOT NULL,
-  "issue_date"               TEXT NOT NULL,
   "cert_category"            TEXT NOT NULL,
-  "cert_class"               TEXT,
+  "issue_date"               TEXT,  -- 允许为空
   "cert_major"               TEXT,
   "cert_level"               TEXT,
-  "expire_date"              TEXT,
-  PRIMARY KEY ("id_card_no", "cert_name", "issue_date"),
+  "cert_no"                  TEXT,
+  "expire_date"              TEXT,  -- 允许为空
+  PRIMARY KEY ("id_card_no", "cert_name", "cert_category"),
   FOREIGN KEY ("id_card_no") REFERENCES "employee" ("id_card_no") ON DELETE CASCADE
 );
 
@@ -430,9 +430,9 @@ INSERT INTO form_appendix_col (appendix_id, field_key, label, colspan, sort_orde
 (5,'job_level_class','职级职类',2,70),(5,'change_reason','调整原因',3,80);
 
 INSERT INTO form_appendix_col (appendix_id, field_key, label, colspan, sort_order) VALUES
-(6,'issue_date','取证时间',3,10),(6,'expire_date','到期时间',3,20),(6,'cert_category','资质类别',3,30),
-(6,'cert_class','资质类目',4,40),(6,'cert_major','所属专业',4,50),(6,'cert_level','等级',3,60),
-(6,'cert_name','资质名称',4,70);
+(6,'cert_category','资质类别',3,10),(6,'cert_name','资质名称',4,20),(6,'cert_major','所属专业',4,30),
+(6,'cert_level','资质等级',3,40),(6,'cert_no','证书编号',4,50),(6,'issue_date','取证时间',3,60),
+(6,'expire_date','到期时间',3,70);
 
 INSERT INTO form_appendix_col (appendix_id, field_key, label, colspan, sort_order) VALUES
 (7,'start_date','开始时间',3,10),(7,'end_date','结束时间',3,20),(7,'training_name','项目名称',6,30),
@@ -527,10 +527,10 @@ INSERT INTO education_record (id_card_no, school_name, start_date, is_highest, d
 ('530102198805151234','云南大学','2006-09-01',0,'本科','学士','统招全日制','普通本科','是','软件工程','工商管理','基础软件开发',4.0,'2010-06-30','YD1001','XW1001'),
 ('530102198805151234','电子科技大学','2016-09-01',1,'硕士','硕士','在职研究生','双一流','是','计算机科学','无','分布式计算',3.0,'2019-06-30','YD2001','XW2001');
 
-INSERT INTO certificate_record (id_card_no, cert_name, issue_date, cert_category, cert_class, cert_major, cert_level, expire_date) VALUES
-('530102198805151234','中级工程师','2018-09-01','职称','工程技术类','软件工程','中级','2099-12-31'),
-('530102198805151234','系统架构设计师','2020-05-15','职业资格','计算机技术与软件','系统架构设计','高级','2099-12-31'),
-('530102198805151234','PMP项目管理师','2019-10-10','职业技能','项目管理','敏捷开发','国际认证','2025-10-10');
+INSERT INTO certificate_record (id_card_no, cert_name, cert_category, issue_date, cert_major, cert_level, cert_no, expire_date) VALUES
+('530102198805151234','中级工程师','职称','2018-09-01','软件工程','中级','ZC201809001', NULL),
+('530102198805151234','系统架构设计师','职业资格', NULL,'系统架构设计','高级','ZG202005002', NULL),
+('530102198805151234','PMP项目管理师','职业技能','2019-10-10','敏捷开发','国际认证','PMP12345678','2025-10-10');
 
 INSERT INTO family_member (id_card_no, relation, real_name, birth_date, political_status, education_level, work_unit, position, phone) VALUES
 ('530102198805151234','配偶','李霞','1990-03-12','群众','本科','市第一人民医院','护士长','13666666666'),

@@ -53,9 +53,9 @@ SHEET_CONFIG = {
         'ignore_cols': [],
         'name_is_member': True,
     },
-    '职称资质': {
+    '职称职业资格': {
         'table': 'certificate_record',
-        'unique_keys': ['id_card_no', 'cert_name', 'issue_date'],
+        'unique_keys': ['id_card_no', 'cert_name', 'cert_category'],
         'ignore_cols': ['real_name'],
     },
     '培训记录': {
@@ -87,7 +87,7 @@ SHEET_CONFIG = {
 
 IMPORT_ORDER = [
     '员工主表', '任职记录', '教育经历', '地址信息', '合同记录',
-    '家庭成员', '职称资质', '培训记录', '奖惩记录', '入职前工作经历',
+    '家庭成员', '职称职业资格', '培训记录', '奖惩记录', '入职前工作经历',
     '薪酬调整记录', '飞书账号映射',
 ]
 

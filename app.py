@@ -126,10 +126,9 @@ def get_employee_data(feishu_user_id):
     """, (id_card_no,)).fetchall()]
 
     certificates_data = [dict(r) for r in conn.execute("""
-        SELECT issue_date, expire_date, cert_category, cert_class,
-               cert_major, cert_level, cert_name
-        FROM certificate_record WHERE id_card_no = ? ORDER BY cert_category, issue_date DESC
-    """, (id_card_no,)).fetchall()]
+            SELECT cert_category, cert_name, cert_major, cert_level, cert_no, issue_date, expire_date
+            FROM certificate_record WHERE id_card_no = ? ORDER BY cert_category, issue_date DESC
+        """, (id_card_no,)).fetchall()]
 
     training_data = [dict(r) for r in conn.execute("""
         SELECT start_date, end_date, training_name, training_type,
