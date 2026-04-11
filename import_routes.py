@@ -1,24 +1,15 @@
+import os
 import sqlite3
 import traceback
 from flask import Blueprint, request, jsonify, render_template
 from openpyxl import load_workbook
 
 import_bp = Blueprint('import_bp', __name__)
-DB_FILE = 'data/DB.db'
+DB_FILE    = 'data/DB.db'
+PHOTO_DIR  = 'data/images'
 
 # ══════════════════════════════════════════════════════════════
-#  Sheet 配置
-#
-#  去掉所有 fk_map / employee_id 逻辑：
-#  各子表直接以 id_card_no 作为外键列写入，数据库主键也全部
-#  使用联合主键，不再需要任何 id 转换。
-#
-#  字段说明：
-#    table           → 目标数据库表名
-#    unique_keys     → 业务唯一键（同时也是数据库联合主键）
-#    ignore_cols     → Excel 中存在但导入时跳过的列（英文 field_key）
-#    name_is_member  → 家庭成员表特殊处理（real_name 是成员姓名）
-#    resolve_emp_record → 合同记录需自动填充 employment_record_id
+#  Sheet 配置（与原版完全一致，仅导入逻辑改为全覆盖）
 # ══════════════════════════════════════════════════════════════
 SHEET_CONFIG = {
     '员工主表': {
@@ -85,10 +76,19 @@ SHEET_CONFIG = {
     },
 }
 
+# 导入顺序（依赖顺序：主表最先）
 IMPORT_ORDER = [
     '员工主表', '任职记录', '教育经历', '地址信息', '合同记录',
     '家庭成员', '职称职业资格', '培训记录', '奖惩记录', '入职前工作经历',
     '薪酬调整记录', '飞书账号映射',
+]
+
+# 清空顺序（依赖顺序反向：子表先清，主表最后清）
+# 注意：employee 主表有外键约束，子表必须先删
+CLEAR_ORDER = [
+    '飞书账号映射', '薪酬调整记录', '入职前工作经历', '奖惩记录',
+    '培训记录', '职称职业资格', '家庭成员', '合同记录',
+    '地址信息', '教育经历', '任职记录', '员工主表',
 ]
 
 
@@ -109,7 +109,11 @@ def get_db():
 
 
 def import_sheet(conn, ws, sheet_name, cfg):
-    stats = {'inserted': 0, 'updated': 0, 'skipped': 0, 'errors': []}
+    """
+    全覆盖模式：表已在事务开始时清空，此处只做 INSERT。
+    校验失败则抛异常，由外层事务统一回滚。
+    """
+    stats = {'inserted': 0, 'skipped': 0, 'errors': []}
 
     rows = list(ws.iter_rows(min_row=3))
     if not rows:
@@ -135,6 +139,7 @@ def import_sheet(conn, ws, sheet_name, cfg):
                 val = None
             raw[key] = val
 
+        # 全空行跳过
         if all(v is None for v in raw.values()):
             stats['skipped'] += 1
             continue
@@ -144,6 +149,7 @@ def import_sheet(conn, ws, sheet_name, cfg):
             if not id_card_no:
                 raise ValueError("缺少身份证号 id_card_no")
 
+            # 非主表：检查员工主表中是否存在
             if table != 'employee':
                 exists = conn.execute(
                     "SELECT 1 FROM employee WHERE id_card_no=?", (id_card_no,)
@@ -170,35 +176,14 @@ def import_sheet(conn, ws, sheet_name, cfg):
                 ).fetchone()
                 record['employment_record_id'] = emp_row[0] if emp_row else None
 
-            # Upsert
-            where_parts  = [f"{k}=?" for k in unique_keys]
-            where_vals   = [record[k] for k in unique_keys]
-            where_clause = ' AND '.join(where_parts)
-
-            existing = conn.execute(
-                f"SELECT 1 FROM {table} WHERE {where_clause}", where_vals
-            ).fetchone()
-
-            if existing:
-                update_fields = {k: v for k, v in record.items()
-                                 if k not in unique_keys}
-                if update_fields:
-                    set_clause = ', '.join(f"{k}=?" for k in update_fields)
-                    conn.execute(
-                        f"UPDATE {table} SET {set_clause} WHERE {where_clause}",
-                        list(update_fields.values()) + where_vals
-                    )
-                    stats['updated'] += 1
-                else:
-                    stats['skipped'] += 1
-            else:
-                cols         = ', '.join(record.keys())
-                placeholders = ', '.join('?' for _ in record)
-                conn.execute(
-                    f"INSERT INTO {table} ({cols}) VALUES ({placeholders})",
-                    list(record.values())
-                )
-                stats['inserted'] += 1
+            # 直接 INSERT（表已清空，不需要 upsert）
+            cols         = ', '.join(record.keys())
+            placeholders = ', '.join('?' for _ in record)
+            conn.execute(
+                f"INSERT INTO {table} ({cols}) VALUES ({placeholders})",
+                list(record.values())
+            )
+            stats['inserted'] += 1
 
         except Exception as e:
             stats['errors'].append({
@@ -209,6 +194,10 @@ def import_sheet(conn, ws, sheet_name, cfg):
 
     return stats
 
+
+# ══════════════════════════════════════════════════════════════
+#  路由
+# ══════════════════════════════════════════════════════════════
 
 @import_bp.route('/import')
 def import_page():
@@ -230,33 +219,41 @@ def do_import():
         return jsonify({'success': False, 'message': f'文件解析失败：{e}'}), 400
 
     sheet_names_in_file = set(wb.sheetnames)
+    # 只处理文件中实际存在的 Sheet
+    sheets_to_import = [s for s in IMPORT_ORDER if s in sheet_names_in_file]
+    sheets_to_clear  = [s for s in CLEAR_ORDER  if s in sheet_names_in_file]
+
     results = {}
-    total   = {'inserted': 0, 'updated': 0, 'skipped': 0, 'error_count': 0}
+    total   = {'inserted': 0, 'skipped': 0, 'error_count': 0}
 
     conn = get_db()
     try:
         conn.execute("BEGIN")
-        for sheet_name in IMPORT_ORDER:
-            if sheet_name not in sheet_names_in_file:
-                continue
+
+        # ── Step 1：按反向依赖顺序清空涉及的表 ──────────────
+        for sheet_name in sheets_to_clear:
+            table = SHEET_CONFIG[sheet_name]['table']
+            conn.execute(f"DELETE FROM {table}")
+
+        # ── Step 2：按正向顺序重新插入 ──────────────────────
+        for sheet_name in sheets_to_import:
             stats = import_sheet(
                 conn, wb[sheet_name], sheet_name, SHEET_CONFIG[sheet_name]
             )
             results[sheet_name]   = stats
             total['inserted']    += stats['inserted']
-            total['updated']     += stats['updated']
             total['skipped']     += stats['skipped']
             total['error_count'] += len(stats['errors'])
 
         if total['error_count'] == 0:
             conn.execute("COMMIT")
             success = True
-            message = '导入成功，所有数据已写入数据库。'
+            message = f'全量覆盖导入成功，共写入 {total["inserted"]} 条记录。'
         else:
             conn.execute("ROLLBACK")
             success = False
             message = (f'存在 {total["error_count"]} 处错误，已全部回滚，'
-                       f'数据库未做任何修改。请修正后重新导入。')
+                       f'数据库恢复到导入前的状态。请修正后重新导入。')
 
     except Exception as e:
         conn.execute("ROLLBACK")
@@ -271,9 +268,58 @@ def do_import():
         'results': {
             k: {
                 'inserted': v['inserted'],
-                'updated':  v['updated'],
                 'skipped':  v['skipped'],
                 'errors':   v['errors'],
             } for k, v in results.items()
         }
+    })
+
+
+@import_bp.route('/api/upload-photos', methods=['POST'])
+def upload_photos():
+    """
+    批量上传员工照片到 data/images/
+    同名文件直接覆盖，新文件追加。
+    支持前端传入多个文件（multipart files 字段名均为 'photos'）。
+    """
+    files = request.files.getlist('photos')
+    if not files:
+        return jsonify({'success': False, 'message': '未收到任何文件'}), 400
+
+    os.makedirs(PHOTO_DIR, exist_ok=True)
+
+    saved    = []
+    replaced = []
+    errors   = []
+
+    allowed_ext = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'}
+
+    for f in files:
+        filename = os.path.basename(f.filename)  # 防止路径穿越
+        if not filename:
+            continue
+
+        ext = os.path.splitext(filename)[1].lower()
+        if ext not in allowed_ext:
+            errors.append({'file': filename, 'msg': f'不支持的文件格式 {ext}'})
+            continue
+
+        dest = os.path.join(PHOTO_DIR, filename)
+        is_replace = os.path.exists(dest)
+
+        try:
+            f.save(dest)
+            if is_replace:
+                replaced.append(filename)
+            else:
+                saved.append(filename)
+        except Exception as e:
+            errors.append({'file': filename, 'msg': str(e)})
+
+    return jsonify({
+        'success':  len(errors) == 0,
+        'message':  f'新增 {len(saved)} 张，覆盖 {len(replaced)} 张，失败 {len(errors)} 张',
+        'saved':    saved,
+        'replaced': replaced,
+        'errors':   errors,
     })

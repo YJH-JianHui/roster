@@ -368,9 +368,9 @@ INSERT INTO form_field (group_id, field_key, field_label, lc, vc, min_r, is_phot
 (1,'gender','性别',2,4,1,0,40),(1,'ethnicity','民族',2,4,1,0,50),(1,'birth_date','出生年月',2,4,1,0,60),
 (1,'native','籍贯',2,4,1,0,70),(1,'birthplace','出生地',2,4,1,0,80),(1,'party','政治面貌',2,4,1,0,90),
 (1,'marital','婚姻状况',2,4,1,0,100),(1,'domicile_type','户籍属性',2,4,1,0,110),(1,'blood_type','血型',2,4,1,0,120),
-(1,'height_weight','身高/体重',2,4,1,0,130),(1,'mobile','联系方式',2,4,1,0,140),(1,'email','个人邮箱',3,9,1,0,150),
-(1,'email_work','工作邮箱',3,9,1,0,160),(1,'emergency','紧急联系人',3,9,1,0,170),(1,'emergency_relation','与本人关系',3,9,1,0,180),
-(1,'emergencyTel','紧急联系电话',3,9,1,0,190);
+(1,'height_weight','身高/体重',2,4,1,0,130),(1,'mobile','联系方式',2,4,1,0,140),(1,'email','个人邮箱',2,5,1,0,150),
+(1,'email_work','工作邮箱',2,5,1,0,160),(1,'emergency','紧急联系人',2,4,1,0,170),(1,'emergency_relation','与本人关系',2,4,1,0,180),
+(1,'emergencyTel','紧急电话',2,4,1,0,190);
 
 INSERT INTO form_field (group_id, field_key, field_label, lc, vc, min_r, is_photo, sort_order) VALUES
 (2,'current_company','用工公司',3,9,1,0,10),(2,'labor_relation_company','劳动关系隶属',3,9,1,0,20),

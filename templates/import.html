@@ -31,7 +31,6 @@ body {
   padding: 40px 20px;
 }
 
-/* ── 顶部 ───────────────────────────────── */
 .top-bar {
   display: flex;
   align-items: center;
@@ -60,7 +59,6 @@ body {
   -webkit-text-fill-color: transparent;
 }
 
-/* ── 主容器 ─────────────────────────────── */
 .container {
   max-width: 900px;
   margin: 0 auto;
@@ -69,7 +67,6 @@ body {
   gap: 24px;
 }
 
-/* ── 卡片 ───────────────────────────────── */
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -84,6 +81,52 @@ body {
   color: var(--text-dim);
   margin-bottom: 20px;
 }
+
+/* ── 标签页切换 ─────────────────────────── */
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 28px;
+  background: var(--surface2);
+  border-radius: 8px;
+  padding: 4px;
+}
+.tab-btn {
+  flex: 1;
+  padding: 9px 0;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all .2s;
+}
+.tab-btn.active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 4px rgba(0,0,0,.4);
+}
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* ── 覆盖警告横幅 ────────────────────────── */
+.warn-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 18px;
+  background: rgba(251,191,36,.08);
+  border: 1px solid rgba(251,191,36,.3);
+  border-radius: 10px;
+  margin-bottom: 20px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--yellow);
+}
+.warn-banner svg { flex-shrink: 0; margin-top: 1px; }
 
 /* ── 拖拽上传区 ─────────────────────────── */
 .drop-zone {
@@ -116,6 +159,9 @@ body {
   justify-content: center;
 }
 .drop-icon svg { width: 26px; height: 26px; fill: #fff; }
+.drop-icon.photo-icon-bg {
+  background: linear-gradient(135deg, #059669, #0d9488);
+}
 .drop-title { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
 .drop-sub { font-size: 13px; color: var(--text-dim); }
 
@@ -130,11 +176,11 @@ body {
   margin-top: 16px;
 }
 .file-chosen.show { display: flex; }
-.file-icon {
+.file-icon-wrap {
   width: 38px; height: 38px; background: #1d6f42;
   border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
 }
-.file-icon svg { width: 20px; height: 20px; fill: #fff; }
+.file-icon-wrap svg { width: 20px; height: 20px; fill: #fff; }
 .file-info { flex: 1; min-width: 0; }
 .file-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .file-size { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
@@ -146,27 +192,62 @@ body {
 .file-remove:hover { color: var(--red); }
 .file-remove svg { width: 16px; height: 16px; }
 
-/* ── 说明区 ─────────────────────────────── */
-.hint-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 10px;
-}
-.hint-item {
-  display: flex;
-  align-items: flex-start;
+/* 照片预览列表 */
+.photo-list {
+  display: none;
+  flex-wrap: wrap;
   gap: 8px;
-  padding: 10px 12px;
+  margin-top: 16px;
+  max-height: 200px;
+  overflow-y: auto;
+  padding: 4px;
+}
+.photo-list.show { display: flex; }
+.photo-tag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
   background: var(--surface2);
-  border-radius: 8px;
+  border-radius: 6px;
   font-size: 12px;
   color: var(--text-dim);
-  line-height: 1.5;
 }
-.hint-dot {
+.photo-tag-dot {
   width: 6px; height: 6px; border-radius: 50%;
-  background: var(--accent); flex-shrink: 0; margin-top: 4px;
+  background: #059669; flex-shrink: 0;
 }
+.photo-count-tip {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 10px;
+  text-align: center;
+}
+
+/* ── 进度条 ─────────────────────────────── */
+.progress-wrap { display: none; margin-top: 16px; }
+.progress-wrap.show { display: block; }
+.progress-bar-bg {
+  height: 6px; background: var(--surface2);
+  border-radius: 3px; overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  border-radius: 3px;
+  width: 0%;
+  transition: width .4s ease;
+  animation: shimmer 1.5s infinite;
+}
+.progress-bar-fill.green-bar {
+  background: linear-gradient(90deg, #059669, #0d9488);
+}
+@keyframes shimmer {
+  0%   { opacity: 1; }
+  50%  { opacity: .7; }
+  100% { opacity: 1; }
+}
+.progress-label { font-size: 12px; color: var(--text-dim); margin-top: 8px; text-align: center; }
 
 /* ── 按钮 ───────────────────────────────── */
 .btn-row { display: flex; gap: 12px; justify-content: flex-end; margin-top: 8px; }
@@ -188,13 +269,15 @@ body {
   color: #fff;
   box-shadow: 0 4px 16px rgba(79,124,255,.35);
 }
-.btn-primary:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 6px 20px rgba(79,124,255,.5);
+.btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(79,124,255,.5); }
+.btn-primary:disabled { opacity: .45; cursor: not-allowed; transform: none; box-shadow: none; }
+.btn-green {
+  background: linear-gradient(135deg, #059669, #0d9488);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(5,150,105,.35);
 }
-.btn-primary:disabled {
-  opacity: .45; cursor: not-allowed; transform: none; box-shadow: none;
-}
+.btn-green:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(5,150,105,.5); }
+.btn-green:disabled { opacity: .45; cursor: not-allowed; transform: none; box-shadow: none; }
 .btn-ghost {
   background: transparent;
   color: var(--text-dim);
@@ -202,32 +285,25 @@ body {
 }
 .btn-ghost:hover { color: var(--text); border-color: var(--text-dim); }
 
-/* ── 进度条 ─────────────────────────────── */
-.progress-wrap { display: none; margin-top: 16px; }
-.progress-wrap.show { display: block; }
-.progress-bar-bg {
-  height: 6px; background: var(--surface2);
-  border-radius: 3px; overflow: hidden;
+/* ── 说明区 ─────────────────────────────── */
+.hint-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
 }
-.progress-bar-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--accent), var(--accent2));
-  border-radius: 3px;
-  width: 0%;
-  transition: width .4s ease;
-  animation: shimmer 1.5s infinite;
-}
-@keyframes shimmer {
-  0%   { opacity: 1; }
-  50%  { opacity: .7; }
-  100% { opacity: 1; }
-}
-.progress-label {
+.hint-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--surface2);
+  border-radius: 8px;
   font-size: 12px;
   color: var(--text-dim);
-  margin-top: 8px;
-  text-align: center;
+  line-height: 1.5;
 }
+.hint-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; margin-top: 4px; }
+.hint-dot.green { background: #059669; }
 
 /* ── 结果区 ─────────────────────────────── */
 #result-area { display: none; }
@@ -257,78 +333,57 @@ body {
 .banner-title { font-size: 15px; font-weight: 600; margin-bottom: 3px; }
 .banner-sub   { font-size: 13px; color: var(--text-dim); }
 
-/* 汇总卡 */
 .summary-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
   margin-bottom: 20px;
 }
-.summary-card {
-  background: var(--surface2);
-  border-radius: 10px;
-  padding: 16px;
-  text-align: center;
-}
+.summary-card { background: var(--surface2); border-radius: 10px; padding: 16px; text-align: center; }
 .summary-num { font-size: 28px; font-weight: 700; line-height: 1; margin-bottom: 6px; }
 .summary-label { font-size: 12px; color: var(--text-dim); }
 .num-green  { color: var(--green); }
-.num-blue   { color: var(--accent); }
 .num-yellow { color: var(--yellow); }
 .num-red    { color: var(--red); }
 
-/* Sheet 明细 */
 .sheet-list { display: flex; flex-direction: column; gap: 8px; }
-.sheet-row {
-  background: var(--surface2);
-  border-radius: 8px;
-  overflow: hidden;
-}
+.sheet-row { background: var(--surface2); border-radius: 8px; overflow: hidden; }
 .sheet-header {
-  display: flex;
-  align-items: center;
-  padding: 12px 16px;
-  cursor: pointer;
-  gap: 10px;
-  transition: background .2s;
+  display: flex; align-items: center;
+  padding: 12px 16px; cursor: pointer; gap: 10px; transition: background .2s;
 }
 .sheet-header:hover { background: rgba(255,255,255,.04); }
 .sheet-name { flex: 1; font-size: 14px; font-weight: 500; }
 .sheet-badges { display: flex; gap: 6px; align-items: center; }
-.badge {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 4px;
-}
+.badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px; }
 .badge-green  { background: rgba(52,211,153,.15); color: var(--green); }
-.badge-blue   { background: rgba(79,124,255,.15);  color: var(--accent); }
 .badge-yellow { background: rgba(251,191,36,.15);  color: var(--yellow); }
 .badge-red    { background: rgba(248,113,113,.15); color: var(--red); }
 .chevron { color: var(--text-dim); transition: transform .2s; }
 .chevron.open { transform: rotate(90deg); }
-
-.sheet-errors {
-  display: none;
-  padding: 0 16px 14px;
-}
+.sheet-errors { display: none; padding: 0 16px 14px; }
 .sheet-errors.open { display: block; }
 .error-item {
-  display: flex;
-  gap: 10px;
-  padding: 8px 10px;
-  background: rgba(248,113,113,.06);
-  border-left: 3px solid var(--red);
-  border-radius: 0 6px 6px 0;
-  margin-bottom: 6px;
-  font-size: 12px;
+  display: flex; gap: 10px; padding: 8px 10px;
+  background: rgba(248,113,113,.06); border-left: 3px solid var(--red);
+  border-radius: 0 6px 6px 0; margin-bottom: 6px; font-size: 12px;
 }
 .error-row { color: var(--red); font-weight: 600; flex-shrink: 0; }
 .error-msg { color: var(--text-dim); }
 
-/* ── 响应式 ─────────────────────────────── */
+/* 照片结果 */
+#photo-result-area { display: none; }
+#photo-result-area.show { display: block; margin-top: 24px; }
+.photo-result-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 16px;
+}
+.photo-result-card { background: var(--surface2); border-radius: 10px; padding: 16px; text-align: center; }
+
 @media (max-width: 600px) {
-  .summary-grid { grid-template-columns: repeat(2, 1fr); }
+  .summary-grid, .photo-result-grid { grid-template-columns: repeat(2, 1fr); }
   .card { padding: 20px; }
 }
 </style>
@@ -337,174 +392,262 @@ body {
 
 <div class="top-bar">
   <a href="/">← 返回首页</a>
-  <span class="page-title">员工档案批量导入</span>
+  <span class="page-title">员工档案管理</span>
 </div>
 
 <div class="container">
 
-  <!-- 上传卡 -->
   <div class="card">
-    <div class="card-title">选择导入文件</div>
+    <!-- 标签页 -->
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('data')">📊 数据导入</button>
+      <button class="tab-btn" onclick="switchTab('photo')">🖼️ 照片上传</button>
+    </div>
 
-    <div class="drop-zone" id="dropZone">
-      <input type="file" id="fileInput" accept=".xlsx">
-      <div class="drop-icon">
-        <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+    <!-- ══ 数据导入面板 ══ -->
+    <div class="tab-panel active" id="panel-data">
+
+      <div class="warn-banner">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        <div>
+          <strong>全量覆盖模式：</strong>导入前将清空 Excel 中涉及的所有表，再重新写入。
+          任意行出现错误将回滚，数据库恢复到导入前状态。请确认 Excel 数据完整后再操作。
+        </div>
       </div>
-      <div class="drop-title">拖拽文件到此处，或点击选择</div>
-      <div class="drop-sub">仅支持 .xlsx 格式 · 请使用系统提供的导入模板</div>
-    </div>
 
-    <div class="file-chosen" id="fileChosen">
-      <div class="file-icon">
-        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg>
+      <div class="drop-zone" id="dropZone">
+        <input type="file" id="fileInput" accept=".xlsx">
+        <div class="drop-icon">
+          <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+        </div>
+        <div class="drop-title">拖拽 Excel 文件到此处，或点击选择</div>
+        <div class="drop-sub">仅支持 .xlsx 格式 · 请使用系统提供的导入模板</div>
       </div>
-      <div class="file-info">
-        <div class="file-name" id="fileName">—</div>
-        <div class="file-size" id="fileSize">—</div>
+
+      <div class="file-chosen" id="fileChosen">
+        <div class="file-icon-wrap">
+          <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg>
+        </div>
+        <div class="file-info">
+          <div class="file-name" id="fileName">—</div>
+          <div class="file-size" id="fileSize">—</div>
+        </div>
+        <button class="file-remove" id="fileRemove" title="移除文件">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
       </div>
-      <button class="file-remove" id="fileRemove" title="移除文件">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </div>
 
-    <div class="progress-wrap" id="progressWrap">
-      <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressBar"></div></div>
-      <div class="progress-label" id="progressLabel">正在处理，请稍候…</div>
-    </div>
+      <div class="progress-wrap" id="progressWrap">
+        <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressBar"></div></div>
+        <div class="progress-label" id="progressLabel">正在处理，请稍候…</div>
+      </div>
 
-    <div class="btn-row">
-      <button class="btn btn-ghost" id="btnReset">重置</button>
-      <button class="btn btn-primary" id="btnImport" disabled>
-        <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>
-        开始导入
-      </button>
-    </div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" id="btnReset">重置</button>
+        <button class="btn btn-primary" id="btnImport" disabled>
+          <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+            <path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/>
+          </svg>
+          开始全量导入
+        </button>
+      </div>
+
+      <!-- 导入结果 -->
+      <div id="result-area">
+        <div style="height:24px"></div>
+        <div class="card-title">导入结果</div>
+        <div class="result-banner" id="resultBanner">
+          <div class="banner-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" id="bannerIconSvg"></svg>
+          </div>
+          <div class="banner-text">
+            <div class="banner-title" id="bannerTitle"></div>
+            <div class="banner-sub"  id="bannerSub"></div>
+          </div>
+        </div>
+        <div class="summary-grid">
+          <div class="summary-card">
+            <div class="summary-num num-green" id="numInserted">0</div>
+            <div class="summary-label">写入记录</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-num num-yellow" id="numSkipped">0</div>
+            <div class="summary-label">跳过空行</div>
+          </div>
+          <div class="summary-card">
+            <div class="summary-num num-red" id="numErrors">0</div>
+            <div class="summary-label">错误行数</div>
+          </div>
+        </div>
+        <div class="sheet-list" id="sheetList"></div>
+      </div>
+
+    </div><!-- /panel-data -->
+
+    <!-- ══ 照片上传面板 ══ -->
+    <div class="tab-panel" id="panel-photo">
+
+      <div class="drop-zone" id="photoDropZone">
+        <input type="file" id="photoInput" accept="image/*" multiple>
+        <div class="drop-icon photo-icon-bg">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21 15 16 10 5 21"/>
+          </svg>
+        </div>
+        <div class="drop-title">拖拽照片到此处，或点击选择</div>
+        <div class="drop-sub">支持 jpg / png / webp · 可多选 · 同名文件自动覆盖</div>
+      </div>
+
+      <div class="photo-list" id="photoList"></div>
+      <div class="photo-count-tip" id="photoCountTip"></div>
+
+      <div class="progress-wrap" id="photoProgressWrap">
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill green-bar" id="photoProgressBar"></div>
+        </div>
+        <div class="progress-label" id="photoProgressLabel">正在上传…</div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-ghost" id="btnPhotoReset">重置</button>
+        <button class="btn btn-green" id="btnPhotoUpload" disabled>
+          <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+            <path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/>
+          </svg>
+          开始上传
+        </button>
+      </div>
+
+      <!-- 照片上传结果 -->
+      <div id="photo-result-area">
+        <div style="height:24px"></div>
+        <div class="card-title">上传结果</div>
+        <div class="result-banner" id="photoResultBanner">
+          <div class="banner-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" id="photoBannerIcon"></svg>
+          </div>
+          <div class="banner-text">
+            <div class="banner-title" id="photoBannerTitle"></div>
+            <div class="banner-sub"  id="photoBannerSub"></div>
+          </div>
+        </div>
+        <div class="photo-result-grid">
+          <div class="photo-result-card">
+            <div class="summary-num num-green" id="photoNumSaved">0</div>
+            <div class="summary-label">新增照片</div>
+          </div>
+          <div class="photo-result-card">
+            <div class="summary-num" style="color:var(--accent)" id="photoNumReplaced">0</div>
+            <div class="summary-label">覆盖照片</div>
+          </div>
+          <div class="photo-result-card">
+            <div class="summary-num num-red" id="photoNumErrors">0</div>
+            <div class="summary-label">上传失败</div>
+          </div>
+        </div>
+        <div id="photoErrorList"></div>
+      </div>
+
+    </div><!-- /panel-photo -->
+
   </div>
 
   <!-- 导入规则说明 -->
-  <div class="card">
-    <div class="card-title">导入规则</div>
-    <div class="hint-grid">
+  <div class="card" id="hint-card">
+    <div class="card-title">说明</div>
+    <div class="hint-grid" id="hint-grid-data">
       <div class="hint-item"><span class="hint-dot"></span>员工主表必须存在，其他 Sheet 可选</div>
       <div class="hint-item"><span class="hint-dot"></span>员工以身份证号为唯一标识</div>
-      <div class="hint-item"><span class="hint-dot"></span>已存在的记录按唯一键比对后更新</div>
-      <div class="hint-item"><span class="hint-dot"></span>新增记录直接追加，不覆盖历史</div>
+      <div class="hint-item"><span class="hint-dot"></span>导入前自动清空 Excel 中涉及的表</div>
+      <div class="hint-item"><span class="hint-dot"></span>按依赖顺序清空：子表先清，主表最后</div>
       <div class="hint-item"><span class="hint-dot"></span>任意 Sheet 出现错误则全部回滚</div>
       <div class="hint-item"><span class="hint-dot"></span>橙色「姓名[冗余]」列导入时自动忽略</div>
       <div class="hint-item"><span class="hint-dot"></span>空行自动跳过，不计入统计</div>
-      <div class="hint-item"><span class="hint-dot"></span>不会删除数据库中已有但 Excel 中没有的记录</div>
+      <div class="hint-item"><span class="hint-dot"></span>此操作不可撤销，请确保数据完整</div>
+    </div>
+    <div class="hint-grid" id="hint-grid-photo" style="display:none">
+      <div class="hint-item"><span class="hint-dot green"></span>支持 jpg、jpeg、png、gif、webp、bmp</div>
+      <div class="hint-item"><span class="hint-dot green"></span>可一次选择多张照片</div>
+      <div class="hint-item"><span class="hint-dot green"></span>同名文件自动覆盖，不同名直接新增</div>
+      <div class="hint-item"><span class="hint-dot green"></span>照片保存至 data/images/ 目录</div>
     </div>
   </div>
 
-  <!-- 结果区 -->
-  <div id="result-area">
-    <div class="card">
-      <div class="card-title">导入结果</div>
-
-      <!-- 状态横幅 -->
-      <div class="result-banner" id="resultBanner">
-        <div class="banner-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5" id="bannerIconSvg"></svg>
-        </div>
-        <div class="banner-text">
-          <div class="banner-title" id="bannerTitle"></div>
-          <div class="banner-sub"  id="bannerSub"></div>
-        </div>
-      </div>
-
-      <!-- 汇总数字 -->
-      <div class="summary-grid">
-        <div class="summary-card">
-          <div class="summary-num num-green" id="numInserted">0</div>
-          <div class="summary-label">新增记录</div>
-        </div>
-        <div class="summary-card">
-          <div class="summary-num num-blue" id="numUpdated">0</div>
-          <div class="summary-label">更新记录</div>
-        </div>
-        <div class="summary-card">
-          <div class="summary-num num-yellow" id="numSkipped">0</div>
-          <div class="summary-label">跳过（无变化）</div>
-        </div>
-        <div class="summary-card">
-          <div class="summary-num num-red" id="numErrors">0</div>
-          <div class="summary-label">错误行数</div>
-        </div>
-      </div>
-
-      <!-- 各 Sheet 明细 -->
-      <div class="sheet-list" id="sheetList"></div>
-    </div>
-  </div>
-
-</div><!-- /container -->
+</div>
 
 <script>
-const fileInput   = document.getElementById('fileInput');
-const dropZone    = document.getElementById('dropZone');
-const fileChosen  = document.getElementById('fileChosen');
-const fileName    = document.getElementById('fileName');
-const fileSize    = document.getElementById('fileSize');
-const fileRemove  = document.getElementById('fileRemove');
-const btnImport   = document.getElementById('btnImport');
-const btnReset    = document.getElementById('btnReset');
-const progressWrap= document.getElementById('progressWrap');
-const progressBar = document.getElementById('progressBar');
-const progressLabel=document.getElementById('progressLabel');
-const resultArea  = document.getElementById('result-area');
+/* ══ 标签页切换 ══ */
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach((b, i) => {
+    b.classList.toggle('active', (i === 0 && tab === 'data') || (i === 1 && tab === 'photo'));
+  });
+  document.getElementById('panel-data').classList.toggle('active', tab === 'data');
+  document.getElementById('panel-photo').classList.toggle('active', tab === 'photo');
+  document.getElementById('hint-grid-data').style.display  = tab === 'data'  ? '' : 'none';
+  document.getElementById('hint-grid-photo').style.display = tab === 'photo' ? '' : 'none';
+}
+
+function formatBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+  return (b/1048576).toFixed(2) + ' MB';
+}
+
+/* ══════════════════════════════
+   数据导入
+══════════════════════════════ */
+const fileInput    = document.getElementById('fileInput');
+const dropZone     = document.getElementById('dropZone');
+const fileChosen   = document.getElementById('fileChosen');
+const fileName     = document.getElementById('fileName');
+const fileSize     = document.getElementById('fileSize');
+const fileRemove   = document.getElementById('fileRemove');
+const btnImport    = document.getElementById('btnImport');
+const btnReset     = document.getElementById('btnReset');
+const progressWrap = document.getElementById('progressWrap');
+const progressBar  = document.getElementById('progressBar');
+const progressLabel= document.getElementById('progressLabel');
+const resultArea   = document.getElementById('result-area');
 
 let selectedFile = null;
 
-// ── 文件选择 ───────────────────────────────
-function formatBytes(b) {
-  if (b < 1024) return b + ' B';
-  if (b < 1024*1024) return (b/1024).toFixed(1) + ' KB';
-  return (b/1024/1024).toFixed(2) + ' MB';
-}
-
 function setFile(f) {
-  if (!f || !f.name.endsWith('.xlsx')) {
-    alert('请选择 .xlsx 格式的文件');
-    return;
-  }
+  if (!f || !f.name.endsWith('.xlsx')) { alert('请选择 .xlsx 格式的文件'); return; }
   selectedFile = f;
   fileName.textContent = f.name;
   fileSize.textContent = formatBytes(f.size);
   fileChosen.classList.add('show');
   btnImport.disabled = false;
-  resultArea.classList.remove('show');
+  resultArea.style.display = 'none';
 }
 
 fileInput.addEventListener('change', e => { if (e.target.files[0]) setFile(e.target.files[0]); });
-
 dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
 dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
 dropZone.addEventListener('drop', e => {
-  e.preventDefault();
-  dropZone.classList.remove('drag-over');
-  const f = e.dataTransfer.files[0];
-  if (f) setFile(f);
+  e.preventDefault(); dropZone.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]);
 });
+fileRemove.addEventListener('click', e => { e.stopPropagation(); resetData(); });
 
-fileRemove.addEventListener('click', e => {
-  e.stopPropagation();
-  reset();
-});
-
-function reset() {
+function resetData() {
   selectedFile = null;
   fileInput.value = '';
   fileChosen.classList.remove('show');
   btnImport.disabled = true;
   progressWrap.classList.remove('show');
   progressBar.style.width = '0%';
-  resultArea.classList.remove('show');
+  resultArea.style.display = 'none';
 }
+btnReset.addEventListener('click', resetData);
 
-btnReset.addEventListener('click', reset);
-
-// ── 进度动画（模拟，后端是同步的） ─────────
 let progressTimer = null;
 function startProgress() {
   progressWrap.classList.add('show');
@@ -513,7 +656,7 @@ function startProgress() {
   progressTimer = setInterval(() => {
     pct = Math.min(pct + Math.random() * 8, 90);
     progressBar.style.width = pct + '%';
-    const labels = ['正在解析文件…','正在校验数据…','正在写入员工主表…','正在写入子表数据…','即将完成…'];
+    const labels = ['正在清空原有数据…','正在解析 Excel…','正在校验数据…','正在写入员工主表…','正在写入子表…'];
     progressLabel.textContent = labels[Math.min(Math.floor(pct/20), labels.length-1)];
   }, 300);
 }
@@ -524,46 +667,34 @@ function finishProgress() {
   setTimeout(() => progressWrap.classList.remove('show'), 800);
 }
 
-// ── 渲染结果 ───────────────────────────────
 function renderResult(data) {
   const success = data.success;
   const banner  = document.getElementById('resultBanner');
   const iconSvg = document.getElementById('bannerIconSvg');
-
   banner.className = 'result-banner ' + (success ? 'success' : 'error');
   document.getElementById('bannerTitle').textContent = success ? '导入成功' : '导入失败，已回滚';
   document.getElementById('bannerSub').textContent   = data.message;
-
-  if (success) {
-    iconSvg.innerHTML = '<polyline points="20 6 9 17 4 12"/>';
-  } else {
-    iconSvg.innerHTML = '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>';
-  }
+  iconSvg.innerHTML = success
+    ? '<polyline points="20 6 9 17 4 12"/>'
+    : '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>';
 
   const t = data.total || {};
   document.getElementById('numInserted').textContent = t.inserted    || 0;
-  document.getElementById('numUpdated').textContent  = t.updated     || 0;
   document.getElementById('numSkipped').textContent  = t.skipped     || 0;
   document.getElementById('numErrors').textContent   = t.error_count || 0;
 
-  // Sheet 明细
   const list = document.getElementById('sheetList');
   list.innerHTML = '';
-  const results = data.results || {};
-
-  Object.entries(results).forEach(([sheet, stat]) => {
+  Object.entries(data.results || {}).forEach(([sheet, stat]) => {
     const hasErr = stat.errors && stat.errors.length > 0;
     const row = document.createElement('div');
     row.className = 'sheet-row';
-
     const badges = [];
-    if (stat.inserted) badges.push(`<span class="badge badge-green">+${stat.inserted} 新增</span>`);
-    if (stat.updated)  badges.push(`<span class="badge badge-blue">↑${stat.updated} 更新</span>`);
+    if (stat.inserted) badges.push(`<span class="badge badge-green">+${stat.inserted} 写入</span>`);
     if (stat.skipped)  badges.push(`<span class="badge badge-yellow">◌${stat.skipped} 跳过</span>`);
     if (hasErr)        badges.push(`<span class="badge badge-red">✕${stat.errors.length} 错误</span>`);
-    if (!stat.inserted && !stat.updated && !stat.skipped && !hasErr)
+    if (!stat.inserted && !stat.skipped && !hasErr)
       badges.push(`<span class="badge badge-yellow">无数据</span>`);
-
     row.innerHTML = `
       <div class="sheet-header" onclick="toggleSheet(this)">
         <span class="sheet-name">${sheet}</span>
@@ -571,17 +702,15 @@ function renderResult(data) {
         ${hasErr ? '<span class="chevron">›</span>' : ''}
       </div>
       ${hasErr ? `<div class="sheet-errors">
-        ${stat.errors.map(e => `
-          <div class="error-item">
-            <span class="error-row">第 ${e.row} 行</span>
-            <span class="error-msg">${e.msg}</span>
-          </div>`).join('')}
-      </div>` : ''}
-    `;
+        ${stat.errors.map(e => `<div class="error-item">
+          <span class="error-row">第 ${e.row} 行</span>
+          <span class="error-msg">${e.msg}</span>
+        </div>`).join('')}
+      </div>` : ''}`;
     list.appendChild(row);
   });
 
-  resultArea.classList.add('show');
+  resultArea.style.display = 'block';
   resultArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
@@ -593,17 +722,13 @@ function toggleSheet(header) {
   chevron.classList.toggle('open', isOpen);
 }
 
-// ── 提交 ───────────────────────────────────
 btnImport.addEventListener('click', async () => {
   if (!selectedFile) return;
-
   btnImport.disabled = true;
   btnReset.disabled  = true;
   startProgress();
-
   const fd = new FormData();
   fd.append('file', selectedFile);
-
   try {
     const res  = await fetch('/api/import', { method: 'POST', body: fd });
     const data = await res.json();
@@ -611,15 +736,139 @@ btnImport.addEventListener('click', async () => {
     renderResult(data);
   } catch (err) {
     finishProgress();
-    renderResult({
-      success: false,
-      message: '网络请求失败：' + err.message,
-      total:   { inserted: 0, updated: 0, skipped: 0, error_count: 1 },
-      results: {}
-    });
+    renderResult({ success: false, message: '网络请求失败：' + err.message, total: {}, results: {} });
   } finally {
     btnImport.disabled = false;
     btnReset.disabled  = false;
+  }
+});
+
+/* ══════════════════════════════
+   照片上传
+══════════════════════════════ */
+const photoInput       = document.getElementById('photoInput');
+const photoDropZone    = document.getElementById('photoDropZone');
+const photoList        = document.getElementById('photoList');
+const photoCountTip    = document.getElementById('photoCountTip');
+const btnPhotoUpload   = document.getElementById('btnPhotoUpload');
+const btnPhotoReset    = document.getElementById('btnPhotoReset');
+const photoProgressWrap= document.getElementById('photoProgressWrap');
+const photoProgressBar = document.getElementById('photoProgressBar');
+const photoProgressLabel=document.getElementById('photoProgressLabel');
+const photoResultArea  = document.getElementById('photo-result-area');
+
+let selectedPhotos = [];
+
+function setPhotos(files) {
+  const allowed = ['image/jpeg','image/png','image/gif','image/webp','image/bmp'];
+  const filtered = Array.from(files).filter(f => allowed.includes(f.type));
+  if (filtered.length === 0) { alert('未检测到支持的图片格式（jpg/png/gif/webp/bmp）'); return; }
+  selectedPhotos = filtered;
+
+  photoList.innerHTML = '';
+  const show = Math.min(filtered.length, 30);
+  for (let i = 0; i < show; i++) {
+    const tag = document.createElement('div');
+    tag.className = 'photo-tag';
+    tag.innerHTML = `<span class="photo-tag-dot"></span>${filtered[i].name}`;
+    photoList.appendChild(tag);
+  }
+  if (filtered.length > 30) {
+    const more = document.createElement('div');
+    more.className = 'photo-tag';
+    more.style.color = 'var(--text-dim)';
+    more.textContent = `… 还有 ${filtered.length - 30} 张`;
+    photoList.appendChild(more);
+  }
+
+  photoList.classList.add('show');
+  photoCountTip.textContent = `共选择 ${filtered.length} 张图片`;
+  btnPhotoUpload.disabled = false;
+  photoResultArea.style.display = 'none';
+}
+
+photoInput.addEventListener('change', e => { if (e.target.files.length) setPhotos(e.target.files); });
+photoDropZone.addEventListener('dragover', e => { e.preventDefault(); photoDropZone.classList.add('drag-over'); });
+photoDropZone.addEventListener('dragleave', () => photoDropZone.classList.remove('drag-over'));
+photoDropZone.addEventListener('drop', e => {
+  e.preventDefault(); photoDropZone.classList.remove('drag-over');
+  if (e.dataTransfer.files.length) setPhotos(e.dataTransfer.files);
+});
+
+function resetPhoto() {
+  selectedPhotos = [];
+  photoInput.value = '';
+  photoList.classList.remove('show');
+  photoList.innerHTML = '';
+  photoCountTip.textContent = '';
+  btnPhotoUpload.disabled = true;
+  photoProgressWrap.classList.remove('show');
+  photoProgressBar.style.width = '0%';
+  photoResultArea.style.display = 'none';
+}
+btnPhotoReset.addEventListener('click', resetPhoto);
+
+btnPhotoUpload.addEventListener('click', async () => {
+  if (!selectedPhotos.length) return;
+  btnPhotoUpload.disabled = true;
+  btnPhotoReset.disabled  = true;
+
+  // 进度动画
+  photoProgressWrap.classList.add('show');
+  photoProgressBar.style.width = '0%';
+  let pct = 0;
+  const ptimer = setInterval(() => {
+    pct = Math.min(pct + Math.random() * 12, 90);
+    photoProgressBar.style.width = pct + '%';
+    photoProgressLabel.textContent = `正在上传 ${selectedPhotos.length} 张照片…`;
+  }, 200);
+
+  const fd = new FormData();
+  selectedPhotos.forEach(f => fd.append('photos', f));
+
+  try {
+    const res  = await fetch('/api/upload-photos', { method: 'POST', body: fd });
+    const data = await res.json();
+
+    clearInterval(ptimer);
+    photoProgressBar.style.width = '100%';
+    photoProgressLabel.textContent = '上传完成';
+    setTimeout(() => photoProgressWrap.classList.remove('show'), 800);
+
+    // 渲染结果
+    const success = data.success;
+    const banner  = document.getElementById('photoResultBanner');
+    const iconSvg = document.getElementById('photoBannerIcon');
+    banner.className = 'result-banner ' + (success ? 'success' : 'error');
+    document.getElementById('photoBannerTitle').textContent = success ? '上传成功' : '部分文件上传失败';
+    document.getElementById('photoBannerSub').textContent   = data.message;
+    iconSvg.innerHTML = success
+      ? '<polyline points="20 6 9 17 4 12"/>'
+      : '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>';
+
+    document.getElementById('photoNumSaved').textContent    = (data.saved    || []).length;
+    document.getElementById('photoNumReplaced').textContent = (data.replaced || []).length;
+    document.getElementById('photoNumErrors').textContent   = (data.errors   || []).length;
+
+    const errList = document.getElementById('photoErrorList');
+    errList.innerHTML = '';
+    (data.errors || []).forEach(e => {
+      const el = document.createElement('div');
+      el.className = 'error-item';
+      el.style.marginBottom = '6px';
+      el.innerHTML = `<span class="error-row">${e.file}</span><span class="error-msg">${e.msg}</span>`;
+      errList.appendChild(el);
+    });
+
+    photoResultArea.style.display = 'block';
+    photoResultArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (err) {
+    clearInterval(ptimer);
+    photoProgressWrap.classList.remove('show');
+    alert('上传失败：' + err.message);
+  } finally {
+    btnPhotoUpload.disabled = false;
+    btnPhotoReset.disabled  = false;
   }
 });
 </script>

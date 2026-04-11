@@ -65,8 +65,19 @@
             text-align: center; vertical-align: middle;
             color: #bbb; font-size: 11px;
             background: #fafafa; padding: 0 !important;
+            position: relative;
         }
-        .photo-cell img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .photo-cell .photo-img-wrap {
+            position: absolute;
+            inset: 0;
+            overflow: hidden;
+        }
+        .photo-cell .photo-img-wrap img {
+            width: 100%; height: 100%;
+            object-fit: cover;
+            object-position: center top;
+            display: block;
+        }
         .photo-placeholder {
             display: flex; flex-direction: column;
             align-items: center; justify-content: center;
@@ -130,20 +141,19 @@
 
     /**
      * 主表单渲染引擎
-     * 照片布局逻辑：
-     *   - 照片固定属于当前 group（基本信息），rowSpan = photoField.minR
-     *   - 照片旁边的列宽 = TOTAL_COLS - photoField.vc
-     *   - 先把非照片的有效字段用流式算法分成若干行（每行不超过照片旁可用列宽）
-     *   - 如果分出的行数 >= minR：正常渲染，超出照片的行用全宽
-     *   - 如果分出的行数 < minR：不足的行补空行（空 td 撑满）
-     *   - 没有照片字段：正常全宽流式渲染
+     *
+     * 照片布局规则：
+     *   1. 照片 rowSpan 固定 = photoField.minR，不随字段数量变化
+     *   2. 照片旁（前 minR 行）：按正常流式格式排字段，排满 minR 行为止
+     *      - 不足 minR 行：空白行补齐
+     *      - 排满 minR 行后还有剩余字段：继续全宽正常排列
+     *   3. 没有照片字段：全宽正常流式渲染
      */
     function renderForm(data, groups) {
         const tbody = document.getElementById('form-body');
         tbody.innerHTML = '';
 
         groups.forEach(group => {
-            // 过滤有值的字段
             const activeFields = group.fields.filter(f => isValid(data[f.key]));
             if (activeFields.length === 0) return;
 
@@ -153,43 +163,43 @@
             secTr.innerHTML = `<td colspan="${TOTAL_COLS}">${group.title}</td>`;
             tbody.appendChild(secTr);
 
-            // 找照片字段
             const photoField = activeFields.find(f => f.isPhoto);
             const nonPhotoFields = activeFields.filter(f => !f.isPhoto);
 
             if (!photoField) {
-                // 没有照片：普通全宽流式渲染
-                const rows = splitFieldsIntoRows(nonPhotoFields, TOTAL_COLS);
-                rows.forEach(rowFields => {
-                    flushRow(tbody, rowFields, TOTAL_COLS, data, null, false);
+                // 无照片：全宽流式渲染
+                splitFieldsIntoRows(nonPhotoFields, TOTAL_COLS).forEach(rowFields => {
+                    const tr = document.createElement('tr');
+                    appendFieldCells(tr, rowFields, TOTAL_COLS, data);
+                    tbody.appendChild(tr);
                 });
                 return;
             }
 
-            // ── 有照片的情况 ──
-            const photoMinR  = photoField.minR;  // 照片占的最小行数
-            const photoColW  = photoField.vc;     // 照片占的列数
-            const sideColW   = TOTAL_COLS - photoColW; // 照片旁可用列数
+            // ── 有照片 ──
+            const photoMinR = photoField.minR;   // 照片固定行数
+            const photoColW = photoField.vc;      // 照片列宽
+            const sideColW  = TOTAL_COLS - photoColW; // 照片旁可用列宽
 
-            // 把非照片字段按照片旁宽度分行
-            const sideRows = splitFieldsIntoRows(nonPhotoFields, sideColW);
-            const totalSideRows = sideRows.length;
+            // 照片旁：先把所有字段按 sideColW 分行
+            const allSideRows = splitFieldsIntoRows(nonPhotoFields, sideColW);
 
-            // 实际 rowSpan = max(photoMinR, totalSideRows)
-            const actualRowSpan = Math.max(photoMinR, totalSideRows);
+            // 照片旁最多取 photoMinR 行，超出的留给全宽区
+            const insideRows  = allSideRows.slice(0, photoMinR);
+            const outsideRows = allSideRows.slice(photoMinR);
 
-            // 渲染每一行
-            for (let r = 0; r < actualRowSpan; r++) {
+            // 渲染照片区（固定 photoMinR 行）
+            for (let r = 0; r < photoMinR; r++) {
                 const tr = document.createElement('tr');
 
-                // 第一行插入照片格（rowSpan 撑满所有行）
+                // 第一行插入照片单元格
                 if (r === 0) {
                     const ptd = document.createElement('td');
                     ptd.className = 'photo-cell';
-                    ptd.rowSpan = actualRowSpan;
+                    ptd.rowSpan = photoMinR;
                     ptd.colSpan = photoColW;
                     ptd.innerHTML = data[photoField.key]
-                        ? `<img src="${data[photoField.key]}">`
+                        ? `<div class="photo-img-wrap"><img src="${data[photoField.key]}"></div>`
                         : `<div class="photo-placeholder">
                                <div class="photo-icon">
                                    <svg viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5" style="width:16px;height:16px;">
@@ -203,11 +213,11 @@
                     tr.appendChild(ptd);
                 }
 
-                if (r < totalSideRows) {
-                    // 有字段：渲染这一行的字段（填满 sideColW）
-                    appendFieldCells(tr, sideRows[r], sideColW, data);
+                if (r < insideRows.length) {
+                    // 有字段：正常排列
+                    appendFieldCells(tr, insideRows[r], sideColW, data);
                 } else {
-                    // 字段不够：补空行（一个空 td 撑满）
+                    // 不足：补空白行
                     const emptyTd = document.createElement('td');
                     emptyTd.className = 'val';
                     emptyTd.colSpan = sideColW;
@@ -218,8 +228,12 @@
                 tbody.appendChild(tr);
             }
 
-            // 超出照片高度的字段行（totalSideRows > photoMinR 时已包含在 actualRowSpan 中，
-            // 但这些行已在上面循环中渲染完毕，此处无需额外处理）
+            // 照片区结束后，超出的字段继续全宽排列
+            outsideRows.forEach(rowFields => {
+                const tr = document.createElement('tr');
+                appendFieldCells(tr, rowFields, TOTAL_COLS, data);
+                tbody.appendChild(tr);
+            });
         });
     }
 

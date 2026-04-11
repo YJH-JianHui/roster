@@ -4,6 +4,7 @@ from flask import Flask, render_template, jsonify, session, redirect
 from import_routes import import_bp
 from auth_feishu import auth_bp, init_lark_client, require_login
 from feishu_sync import sync_bp, init_sync_config
+from flask import send_from_directory
 
 app = Flask(__name__)
 
@@ -56,6 +57,9 @@ def index():
 def show_profile(feishu_user_id):
     return render_template('profile.html', id_card_no=feishu_user_id)
 
+@app.route('/images/<filename>')
+def serve_image(filename):
+    return send_from_directory('data/images', filename)
 
 @app.route('/api/employee/<feishu_user_id>')
 @require_login
