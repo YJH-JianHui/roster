@@ -2,15 +2,28 @@ import io
 import os
 import sqlite3
 import traceback
+import configparser
 from datetime import datetime
-from flask import Blueprint, request, jsonify, render_template, send_file
+from flask import Blueprint, request, jsonify, render_template, send_file, session
 from openpyxl import load_workbook
 
 from export_utils import export_db_to_excel, build_import_report
 
 import_bp = Blueprint('import_bp', __name__)
-DB_FILE   = 'data/DB.db'
-PHOTO_DIR = 'data/images'
+DB_FILE      = 'data/DB.db'
+PHOTO_DIR    = 'data/images'
+ADMIN_CONFIG = 'admin_config.ini'
+
+
+def _get_admin_password() -> str:
+    """每次读取配置文件，支持不重启热更新密码"""
+    cfg = configparser.ConfigParser()
+    cfg.read(ADMIN_CONFIG, encoding='utf-8')
+    return cfg.get('admin', 'password', fallback='')
+
+
+def _is_authed() -> bool:
+    return session.get('admin_authed') is True
 
 SHEET_CONFIG = {
     '员工主表': {
@@ -181,6 +194,37 @@ def import_sheet(conn, ws, sheet_name, cfg):
 #  路由
 # ══════════════════════════════════════════════════════════════
 
+@import_bp.route('/api/admin/verify', methods=['POST'])
+def admin_verify():
+    """验证管理密码，通过后写入 session"""
+    data = request.get_json(silent=True) or {}
+    pwd  = data.get('password', '')
+    if pwd and pwd == _get_admin_password():
+        session['admin_authed'] = True
+        return jsonify({'success': True})
+    return jsonify({'success': False, 'message': '密码错误'}), 401
+
+
+@import_bp.route('/api/admin/status', methods=['GET'])
+def admin_status():
+    """前端页面加载时查询当前 session 是否已通过验证"""
+    return jsonify({'authed': _is_authed()})
+
+
+@import_bp.route('/api/admin/logout', methods=['POST'])
+def admin_logout():
+    session.pop('admin_authed', None)
+    return jsonify({'success': True})
+
+
+def _require_admin():
+    """用于在接口内部做鉴权，未通过返回 401 Response，通过返回 None"""
+    if not _is_authed():
+        from flask import make_response
+        return make_response(jsonify({'success': False, 'message': '未授权，请先验证管理密码'}), 401)
+    return None
+
+
 @import_bp.route('/import')
 def import_page():
     return render_template('import.html')
@@ -189,6 +233,8 @@ def import_page():
 @import_bp.route('/api/export', methods=['GET'])
 def do_export():
     """导出数据库所有数据为Excel（复刻模板格式，全文本）"""
+    err = _require_admin()
+    if err: return err
     try:
         data = export_db_to_excel(DB_FILE)
         ts   = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -204,6 +250,8 @@ def do_export():
 
 @import_bp.route('/api/import', methods=['POST'])
 def do_import():
+    err = _require_admin()
+    if err: return err
     if 'file' not in request.files:
         return jsonify({'success': False, 'message': '未收到文件'}), 400
 
@@ -284,6 +332,8 @@ def do_import():
 
 @import_bp.route('/api/upload-photos', methods=['POST'])
 def upload_photos():
+    err = _require_admin()
+    if err: return err
     files = request.files.getlist('photos')
     if not files:
         return jsonify({'success': False, 'message': '未收到任何文件'}), 400
