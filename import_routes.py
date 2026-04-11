@@ -1,16 +1,17 @@
+import io
 import os
 import sqlite3
 import traceback
-from flask import Blueprint, request, jsonify, render_template
+from datetime import datetime
+from flask import Blueprint, request, jsonify, render_template, send_file
 from openpyxl import load_workbook
 
-import_bp = Blueprint('import_bp', __name__)
-DB_FILE    = 'data/DB.db'
-PHOTO_DIR  = 'data/images'
+from export_utils import export_db_to_excel, build_import_report
 
-# ══════════════════════════════════════════════════════════════
-#  Sheet 配置（与原版完全一致，仅导入逻辑改为全覆盖）
-# ══════════════════════════════════════════════════════════════
+import_bp = Blueprint('import_bp', __name__)
+DB_FILE   = 'data/DB.db'
+PHOTO_DIR = 'data/images'
+
 SHEET_CONFIG = {
     '员工主表': {
         'table': 'employee',
@@ -76,15 +77,12 @@ SHEET_CONFIG = {
     },
 }
 
-# 导入顺序（依赖顺序：主表最先）
 IMPORT_ORDER = [
     '员工主表', '任职记录', '教育经历', '地址信息', '合同记录',
     '家庭成员', '职称职业资格', '培训记录', '奖惩记录', '入职前工作经历',
     '薪酬调整记录', '飞书账号映射',
 ]
 
-# 清空顺序（依赖顺序反向：子表先清，主表最后清）
-# 注意：employee 主表有外键约束，子表必须先删
 CLEAR_ORDER = [
     '飞书账号映射', '薪酬调整记录', '入职前工作经历', '奖惩记录',
     '培训记录', '职称职业资格', '家庭成员', '合同记录',
@@ -93,7 +91,6 @@ CLEAR_ORDER = [
 
 
 def parse_header(row):
-    """解析列头：'中文_英文' → 返回 field_key 列表"""
     keys = []
     for cell in row:
         val = str(cell.value).strip() if cell.value else ''
@@ -109,19 +106,13 @@ def get_db():
 
 
 def import_sheet(conn, ws, sheet_name, cfg):
-    """
-    全覆盖模式：表已在事务开始时清空，此处只做 INSERT。
-    校验失败则抛异常，由外层事务统一回滚。
-    """
     stats = {'inserted': 0, 'skipped': 0, 'errors': []}
-
     rows = list(ws.iter_rows(min_row=3))
     if not rows:
         return stats
 
     field_keys     = parse_header(rows[0])
     data_rows      = rows[1:]
-
     table          = cfg['table']
     unique_keys    = cfg['unique_keys']
     ignore_cols    = set(cfg.get('ignore_cols', []))
@@ -139,7 +130,6 @@ def import_sheet(conn, ws, sheet_name, cfg):
                 val = None
             raw[key] = val
 
-        # 全空行跳过
         if all(v is None for v in raw.values()):
             stats['skipped'] += 1
             continue
@@ -149,24 +139,18 @@ def import_sheet(conn, ws, sheet_name, cfg):
             if not id_card_no:
                 raise ValueError("缺少身份证号 id_card_no")
 
-            # 非主表：检查员工主表中是否存在
             if table != 'employee':
                 exists = conn.execute(
                     "SELECT 1 FROM employee WHERE id_card_no=?", (id_card_no,)
                 ).fetchone()
                 if not exists:
-                    raise ValueError(
-                        f"身份证号 {id_card_no} 在员工主表中不存在，请先导入员工主表"
-                    )
+                    raise ValueError(f"身份证号 {id_card_no} 在员工主表中不存在")
 
-            # 构建写入字段
             record = {k: v for k, v in raw.items() if k and k not in ignore_cols}
 
-            # 家庭成员：Excel 中 member_name → 数据库 real_name
             if name_is_member and 'member_name' in record:
                 record['real_name'] = record.pop('member_name')
 
-            # 合同记录：按 id_card_no + start_date 找最近的任职段
             if resolve_emp:
                 emp_row = conn.execute(
                     "SELECT id FROM employment_record "
@@ -176,7 +160,6 @@ def import_sheet(conn, ws, sheet_name, cfg):
                 ).fetchone()
                 record['employment_record_id'] = emp_row[0] if emp_row else None
 
-            # 直接 INSERT（表已清空，不需要 upsert）
             cols         = ', '.join(record.keys())
             placeholders = ', '.join('?' for _ in record)
             conn.execute(
@@ -187,9 +170,8 @@ def import_sheet(conn, ws, sheet_name, cfg):
 
         except Exception as e:
             stats['errors'].append({
-                'row':    row_idx,
-                'msg':    str(e),
-                'detail': traceback.format_exc().splitlines()[-1],
+                'row':  row_idx,
+                'msg':  str(e),
             })
 
     return stats
@@ -204,6 +186,22 @@ def import_page():
     return render_template('import.html')
 
 
+@import_bp.route('/api/export', methods=['GET'])
+def do_export():
+    """导出数据库所有数据为Excel（复刻模板格式，全文本）"""
+    try:
+        data = export_db_to_excel(DB_FILE)
+        ts   = datetime.now().strftime('%Y%m%d_%H%M%S')
+        return send_file(
+            io.BytesIO(data),
+            as_attachment=True,
+            download_name=f'员工档案导出_{ts}.xlsx',
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
 @import_bp.route('/api/import', methods=['POST'])
 def do_import():
     if 'file' not in request.files:
@@ -213,33 +211,32 @@ def do_import():
     if not file.filename.endswith('.xlsx'):
         return jsonify({'success': False, 'message': '仅支持 .xlsx 格式'}), 400
 
+    # 读取文件内容（需要读两次：一次导入，一次生成报告）
+    file_bytes = file.read()
+
     try:
-        wb = load_workbook(file, data_only=True)
+        wb = load_workbook(io.BytesIO(file_bytes), data_only=True)
     except Exception as e:
         return jsonify({'success': False, 'message': f'文件解析失败：{e}'}), 400
 
     sheet_names_in_file = set(wb.sheetnames)
-    # 只处理文件中实际存在的 Sheet
     sheets_to_import = [s for s in IMPORT_ORDER if s in sheet_names_in_file]
     sheets_to_clear  = [s for s in CLEAR_ORDER  if s in sheet_names_in_file]
 
-    results = {}
-    total   = {'inserted': 0, 'skipped': 0, 'error_count': 0}
+    results     = {}
+    total       = {'inserted': 0, 'skipped': 0, 'error_count': 0}
+    report_bytes = None
 
     conn = get_db()
     try:
         conn.execute("BEGIN")
 
-        # ── Step 1：按反向依赖顺序清空涉及的表 ──────────────
         for sheet_name in sheets_to_clear:
             table = SHEET_CONFIG[sheet_name]['table']
             conn.execute(f"DELETE FROM {table}")
 
-        # ── Step 2：按正向顺序重新插入 ──────────────────────
         for sheet_name in sheets_to_import:
-            stats = import_sheet(
-                conn, wb[sheet_name], sheet_name, SHEET_CONFIG[sheet_name]
-            )
+            stats = import_sheet(conn, wb[sheet_name], sheet_name, SHEET_CONFIG[sheet_name])
             results[sheet_name]   = stats
             total['inserted']    += stats['inserted']
             total['skipped']     += stats['skipped']
@@ -252,19 +249,29 @@ def do_import():
         else:
             conn.execute("ROLLBACK")
             success = False
-            message = (f'存在 {total["error_count"]} 处错误，已全部回滚，'
-                       f'数据库恢复到导入前的状态。请修正后重新导入。')
+            message = (f'存在 {total["error_count"]} 处错误，已全部回滚。'
+                       f'请修正后重新导入。')
 
     except Exception as e:
         conn.execute("ROLLBACK")
         conn.close()
         return jsonify({'success': False, 'message': f'导入过程异常：{e}', 'results': {}}), 500
 
+    # 生成导入明细报告（无论成功失败都生成）
+    try:
+        wb_import = load_workbook(io.BytesIO(file_bytes), data_only=True)
+        report_bytes = build_import_report(results, DB_FILE, wb_import)
+        import base64
+        report_b64 = base64.b64encode(report_bytes).decode()
+    except Exception:
+        report_b64 = None
+
     conn.close()
     return jsonify({
-        'success': success,
-        'message': message,
-        'total':   total,
+        'success':    success,
+        'message':    message,
+        'total':      total,
+        'report_b64': report_b64,   # 前端用来触发下载
         'results': {
             k: {
                 'inserted': v['inserted'],
@@ -277,42 +284,27 @@ def do_import():
 
 @import_bp.route('/api/upload-photos', methods=['POST'])
 def upload_photos():
-    """
-    批量上传员工照片到 data/images/
-    同名文件直接覆盖，新文件追加。
-    支持前端传入多个文件（multipart files 字段名均为 'photos'）。
-    """
     files = request.files.getlist('photos')
     if not files:
         return jsonify({'success': False, 'message': '未收到任何文件'}), 400
 
     os.makedirs(PHOTO_DIR, exist_ok=True)
-
-    saved    = []
-    replaced = []
-    errors   = []
-
+    saved, replaced, errors = [], [], []
     allowed_ext = {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'}
 
     for f in files:
-        filename = os.path.basename(f.filename)  # 防止路径穿越
+        filename = os.path.basename(f.filename)
         if not filename:
             continue
-
         ext = os.path.splitext(filename)[1].lower()
         if ext not in allowed_ext:
-            errors.append({'file': filename, 'msg': f'不支持的文件格式 {ext}'})
+            errors.append({'file': filename, 'msg': f'不支持的格式 {ext}'})
             continue
-
         dest = os.path.join(PHOTO_DIR, filename)
         is_replace = os.path.exists(dest)
-
         try:
             f.save(dest)
-            if is_replace:
-                replaced.append(filename)
-            else:
-                saved.append(filename)
+            (replaced if is_replace else saved).append(filename)
         except Exception as e:
             errors.append({'file': filename, 'msg': str(e)})
 

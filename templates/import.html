@@ -278,6 +278,14 @@ body {
 }
 .btn-green:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(5,150,105,.5); }
 .btn-green:disabled { opacity: .45; cursor: not-allowed; transform: none; box-shadow: none; }
+.btn-export {
+  background: transparent;
+  color: var(--green);
+  border: 1px solid rgba(52,211,153,.4);
+  font-size:13px;
+  padding: 8px 18px;
+}
+.btn-export:hover { background: rgba(52,211,153,.08); border-color: var(--green); }
 .btn-ghost {
   background: transparent;
   color: var(--text-dim);
@@ -398,6 +406,13 @@ body {
 <div class="container">
 
   <div class="card">
+    <!-- 顶部导出按钮 -->
+    <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+      <button class="btn" id="btnExport" onclick="doExport()" style="background:transparent;color:var(--green);border:1px solid rgba(52,211,153,.4);font-size:13px;padding:8px 18px;gap:6px;" onmouseover="this.style.background='rgba(52,211,153,.08)'" onmouseout="this.style.background='transparent'">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15"><path d="M5 20h14v-2H5v2zm0-10h4v6h6v-6h4l-7-7-7 7z"/></svg>
+        导出现有数据
+      </button>
+    </div>
     <!-- 标签页 -->
     <div class="tabs">
       <button class="tab-btn active" onclick="switchTab('data')">📊 数据导入</button>
@@ -485,6 +500,12 @@ body {
           </div>
         </div>
         <div class="sheet-list" id="sheetList"></div>
+      <div id="downloadReportWrap" style="display:none;margin-top:16px;text-align:right;">
+        <button class="btn btn-green" onclick="downloadReport()">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15"><path d="M5 20h14v-2H5v2zm0-10h4v6h6v-6h4l-7-7-7 7z"/></svg>
+          下载导入明细报告
+        </button>
+      </div>
       </div>
 
     </div><!-- /panel-data -->
@@ -710,6 +731,11 @@ function renderResult(data) {
     list.appendChild(row);
   });
 
+  // 保存报告数据，显示下载按钮
+  _reportB64 = data.report_b64 || null;
+  const wrap = document.getElementById('downloadReportWrap');
+  if (wrap) wrap.style.display = _reportB64 ? 'block' : 'none';
+
   resultArea.style.display = 'block';
   resultArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
@@ -871,6 +897,37 @@ btnPhotoUpload.addEventListener('click', async () => {
     btnPhotoReset.disabled  = false;
   }
 });
+
+/* ══ 导出现有数据 ══ */
+function doExport() {
+  const btn = document.getElementById('btnExport');
+  btn.disabled = true;
+  btn.textContent = '正在导出…';
+  const a = document.createElement('a');
+  a.href = '/api/export';
+  a.click();
+  setTimeout(() => {
+    btn.disabled = false;
+    btn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor" width="15" height="15"><path d="M5 20h14v-2H5v2zm0-10h4v6h6v-6h4l-7-7-7 7z"/></svg> 导出现有数据';
+  }, 3000);
+}
+
+/* ══ 下载导入明细报告 ══ */
+let _reportB64 = null;
+function downloadReport() {
+  if (!_reportB64) return;
+  const raw  = atob(_reportB64);
+  const arr  = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  const blob = new Blob([arr], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  const ts   = new Date().toISOString().slice(0,19).replace(/[-:T]/g, '').replace('T','_');
+  a.href     = url;
+  a.download = `导入明细报告_${ts}.xlsx`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 </script>
 </body>
 </html>
