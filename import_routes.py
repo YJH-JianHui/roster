@@ -10,9 +10,12 @@ from openpyxl import load_workbook
 from export_utils import export_db_to_excel, build_import_report
 
 import_bp = Blueprint('import_bp', __name__)
-DB_FILE      = 'data/DB.db'
-PHOTO_DIR    = 'data/images'
-ADMIN_CONFIG = 'admin_config.ini'
+
+# ── 从环境变量读取路径配置 ──────────────────────────────────
+DB_FILE      = os.environ.get('DB_FILE',      'data/DB.db')
+PHOTO_DIR    = os.environ.get('PHOTO_DIR',    'data/images')
+ADMIN_CONFIG = os.environ.get('ADMIN_CONFIG', 'admin_config.ini')
+# ──────────────────────────────────────────────────────────
 
 
 def _get_admin_password() -> str:
@@ -196,7 +199,6 @@ def import_sheet(conn, ws, sheet_name, cfg):
 
 @import_bp.route('/api/admin/verify', methods=['POST'])
 def admin_verify():
-    """验证管理密码，通过后写入 session"""
     data = request.get_json(silent=True) or {}
     pwd  = data.get('password', '')
     if pwd and pwd == _get_admin_password():
@@ -207,7 +209,6 @@ def admin_verify():
 
 @import_bp.route('/api/admin/status', methods=['GET'])
 def admin_status():
-    """前端页面加载时查询当前 session 是否已通过验证"""
     return jsonify({'authed': _is_authed()})
 
 
@@ -218,7 +219,6 @@ def admin_logout():
 
 
 def _require_admin():
-    """用于在接口内部做鉴权，未通过返回 401 Response，通过返回 None"""
     if not _is_authed():
         from flask import make_response
         return make_response(jsonify({'success': False, 'message': '未授权，请先验证管理密码'}), 401)
@@ -232,7 +232,6 @@ def import_page():
 
 @import_bp.route('/api/export', methods=['GET'])
 def do_export():
-    """导出数据库所有数据为Excel（复刻模板格式，全文本）"""
     err = _require_admin()
     if err: return err
     try:
@@ -259,7 +258,6 @@ def do_import():
     if not file.filename.endswith('.xlsx'):
         return jsonify({'success': False, 'message': '仅支持 .xlsx 格式'}), 400
 
-    # 读取文件内容（需要读两次：一次导入，一次生成报告）
     file_bytes = file.read()
 
     try:
@@ -305,7 +303,6 @@ def do_import():
         conn.close()
         return jsonify({'success': False, 'message': f'导入过程异常：{e}', 'results': {}}), 500
 
-    # 生成导入明细报告（无论成功失败都生成）
     try:
         wb_import = load_workbook(io.BytesIO(file_bytes), data_only=True)
         report_bytes = build_import_report(results, DB_FILE, wb_import)
@@ -319,7 +316,7 @@ def do_import():
         'success':    success,
         'message':    message,
         'total':      total,
-        'report_b64': report_b64,   # 前端用来触发下载
+        'report_b64': report_b64,
         'results': {
             k: {
                 'inserted': v['inserted'],

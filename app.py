@@ -1,3 +1,4 @@
+import os
 import sqlite3
 from datetime import timedelta
 from flask import Flask, render_template, jsonify, session, redirect
@@ -5,22 +6,22 @@ from import_routes import import_bp
 from auth_feishu import auth_bp, init_lark_client, require_login
 from feishu_sync import sync_bp, init_sync_config
 from flask import send_from_directory
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 app = Flask(__name__)
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_host=1, x_proto=1, x_port=1)
 
-# ── 必填：Flask session 加密密钥，生产环境改成随机长字符串 ──
-app.secret_key = 'CHANGE_ME_TO_A_RANDOM_SECRET'
+# ── 从环境变量读取配置 ──────────────────────────────────────
+app.secret_key = os.environ['FLASK_SECRET_KEY']
 app.permanent_session_lifetime = timedelta(hours=8)
 
-# ── 飞书应用配置（从飞书开发者后台"凭证与基础信息"页获取）──
-FEISHU_APP_ID      = 'cli_a952d58519fb9bc4'
-FEISHU_APP_SECRET  = 'fI0doVKtNWNwv4SVTyxjPgZEFDwsh3vG'
-FEISHU_REDIRECT_URI = 'http://127.0.0.1:5000/auth/callback'
+FEISHU_APP_ID       = os.environ['FEISHU_APP_ID']
+FEISHU_APP_SECRET   = os.environ['FEISHU_APP_SECRET']
+FEISHU_REDIRECT_URI = os.environ['FEISHU_REDIRECT_URI']
+BASE_PROFILE_URL    = os.environ['BASE_PROFILE_URL']
+DB_FILE             = os.environ.get('DB_FILE', 'data/DB.db')
 
-# 飞书自定义字段的基础URL
-BASE_PROFILE_URL = 'http://127.0.0.1:5000'
-
-DB_FILE = 'data/DB.db'
+# ──────────────────────────────────────────────────────────
 
 init_lark_client(FEISHU_APP_ID, FEISHU_APP_SECRET, FEISHU_REDIRECT_URI)
 
@@ -33,7 +34,6 @@ init_sync_config(
 
 app.register_blueprint(auth_bp)
 app.register_blueprint(import_bp)
-
 app.register_blueprint(sync_bp)
 
 
@@ -44,12 +44,10 @@ def get_db_connection():
 
 
 @app.route('/')
-@app.route('/')
 def index():
     if not session.get('logged_in'):
         return redirect('/auth/login')
-    # 登录后跳到一个列表页或提示页，而不是某个具体员工
-    return '<h1>登录成功</h1><p>请输入员工飞书ID访问档案，例如：/profile/123456</p>'
+    return '<h1>登录成功</h1>'
 
 
 @app.route('/profile/<feishu_user_id>')
@@ -57,16 +55,17 @@ def index():
 def show_profile(feishu_user_id):
     return render_template('profile.html', id_card_no=feishu_user_id)
 
+
 @app.route('/images/<filename>')
 def serve_image(filename):
     return send_from_directory('data/images', filename)
+
 
 @app.route('/api/employee/<feishu_user_id>')
 @require_login
 def get_employee_data(feishu_user_id):
     conn = get_db_connection()
 
-    # ── 第一步：飞书ID → 身份证号 ──────────────────────────
     map_row = conn.execute(
         'SELECT id_card_no FROM feishu_user_map WHERE feishu_user_id = ?',
         (feishu_user_id,)
@@ -77,7 +76,6 @@ def get_employee_data(feishu_user_id):
 
     id_card_no = map_row['id_card_no']
 
-    # ── 第二步：身份证号查视图（以下全部不变）──────────────
     profile_row = conn.execute(
         'SELECT * FROM vw_employee_profile WHERE id_card_no = ?', (id_card_no,)
     ).fetchone()
@@ -198,4 +196,4 @@ def get_employee_data(feishu_user_id):
 
 
 if __name__ == '__main__':
-    app.run(debug=True, use_reloader=False, port=5000)
+    app.run(debug=False, host='0.0.0.0', port=8098)

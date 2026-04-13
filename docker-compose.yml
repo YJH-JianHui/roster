@@ -1,0 +1,37 @@
+services:
+  hr-roster:
+    build: .
+    container_name: hr_roster
+    restart: always
+    ports:
+      - "8098:8098"
+    volumes:
+      # SQLite 数据库文件持久化
+      - ./data/DB.db:/app/data/DB.db
+      # 员工照片持久化
+      - ./data/images:/app/data/images
+      # 管理员密码配置文件持久化
+      - ./admin_config.ini:/app/admin_config.ini
+    environment:
+      # ── Flask ──────────────────────────────────────────────
+      FLASK_SECRET_KEY: "openssl_rand_hex_32_hr_roster"
+
+      # ── 飞书应用凭证（飞书开发者后台"凭证与基础信息"页获取）──
+      FEISHU_APP_ID: "cli_a952d58519fb9bc4"
+      FEISHU_APP_SECRET: "fI0doVKtNWNwv4SVTyxjPgZEFDwsh3vG"
+
+      # ── 飞书回调地址（必须与飞书开发者后台"重定向URL"完全一致）──
+      # 本地开发时用 http://127.0.0.1:5000/auth/callback
+      # 生产部署时改为公网域名，例如：
+      # FEISHU_REDIRECT_URI: "https://hr.example.com/auth/callback"
+      FEISHU_REDIRECT_URI: "http://39.129.30.173:12125/auth/callback"
+
+      # ── 档案页面基础URL（飞书自定义字段写入的链接前缀）──
+      # 生产部署时改为公网域名，例如：
+      # BASE_PROFILE_URL: "https://hr.example.com"
+      BASE_PROFILE_URL: "http://39.129.30.173:12125"
+
+      # ── 数据文件路径（容器内路径，与 volumes 挂载点一致）──
+      DB_FILE: "data/DB.db"
+      PHOTO_DIR: "data/images"
+      ADMIN_CONFIG: "admin_config.ini"
