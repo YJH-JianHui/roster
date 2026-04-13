@@ -132,7 +132,7 @@ def get_employee_data(feishu_user_id):
             position_name AS position,
             job_level_class,
             record_type,
-            COALESCE(change_reason, COALESCE(end_reason, '在职')) AS change_type
+            COALESCE(change_reason, COALESCE(end_reason, '')) AS change_type
         FROM employment_record WHERE id_card_no = ? ORDER BY start_date
     """, (id_card_no,)).fetchall()]
 

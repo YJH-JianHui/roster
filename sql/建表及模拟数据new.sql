@@ -320,7 +320,11 @@ SELECT
     emp.dept_level1, emp.dept_level2, emp.dept_level3, emp.group_name,
     emp.position_name AS position,
     emp.job_class, emp.job_level, emp.job_level_class,
-    emp.record_type, emp.start_date, emp.tenure_base_date,
+    emp.record_type,
+    -- 当前岗位开始时间（最新一次调岗/晋升的起始日）
+    emp.start_date AS position_start_date,
+    -- 真实入职时间（司龄基准日，贯穿所有任职记录保持不变）
+    emp.tenure_base_date AS hire_date,
     emp.contract_expire_date, emp.contract_summary_type,
     emp.social_insurance_relation, emp.non_compete_signed, emp.non_compete_period,
 
@@ -345,7 +349,13 @@ FROM employee e
 LEFT JOIN education_record edu
        ON e.id_card_no = edu.id_card_no AND edu.is_highest = 1
 LEFT JOIN employment_record emp
-       ON e.id_card_no = emp.id_card_no AND emp.end_date IS NULL
+       ON emp.id = (
+           SELECT id FROM employment_record
+           WHERE id_card_no = e.id_card_no
+             AND end_date IS NULL
+           ORDER BY start_date DESC
+           LIMIT 1
+       )
 LEFT JOIN address_record ah
        ON e.id_card_no = ah.id_card_no AND ah.address_type = '户籍地' AND ah.is_current = 1
 LEFT JOIN address_record an
@@ -378,8 +388,8 @@ INSERT INTO form_field (group_id, field_key, field_label, lc, vc, min_r, is_phot
 (2,'dept_level3','三级部门',2,4,1,0,50),(2,'group_name','组别',2,4,1,0,60),
 (2,'position','岗位名称',2,4,1,0,70),(2,'job_level','职级',2,4,1,0,80),
 (2,'job_class','职类',2,4,1,0,90),(2,'job_level_class','职级职类',2,4,1,0,100),
-(2,'record_type','用工形式',2,4,1,0,110),(2,'start_date','入职时间',2,4,1,0,120),
-(2,'tenure_base_date','司龄基准日',2,4,1,0,130),(2,'contract_expire_date','合同到期日',2,4,1,0,140),
+(2,'record_type','人员类型',2,4,1,0,110),(2,'hire_date','入职时间',2,4,1,0,120),
+(2,'position_start_date','当前岗位开始时间',3,9,1,0,125),(2,'tenure_base_date','司龄基准日',2,4,1,0,130),(2,'contract_expire_date','合同到期日',2,4,1,0,140),
 (2,'contract_summary_type','合同类型',2,4,1,0,150),(2,'social_insurance_relation','社保关系',2,4,1,0,160),
 (2,'non_compete_signed','是否签署《竞业限制协议》',6,6,1,0,170),(2,'non_compete_period','竞业限制期限',3,9,1,0,180);
 
@@ -427,12 +437,12 @@ INSERT INTO form_appendix_col (appendix_id, field_key, label, colspan, sort_orde
 (3,'end_date','到期日期',4,40),(3,'remark','备注',10,50);
 
 INSERT INTO form_appendix_col (appendix_id, field_key, label, colspan, sort_order) VALUES
-(4,'period','时期',5,10),(4,'company','用工公司',4,20),(4,'dept','部门',4,30),
+(4,'period','时期',5,10),(4,'company','用工公司',4,20),(4,'dept','用工部门',4,30),
 (4,'position','岗位',3,40),(4,'job_level_class','职级职类',2,50),
-(4,'record_type','用工形式',2,60),(4,'change_type','变动类型',4,70);
+(4,'record_type','人员类型',2,60),(4,'change_type','变动类型',4,70);
 
 INSERT INTO form_appendix_col (appendix_id, field_key, label, colspan, sort_order) VALUES
-(5,'period','时间',4,10),(5,'company','公司',4,20),(5,'dept','部门',4,30),
+(5,'period','时间',4,10),(5,'company','用工公司',4,20),(5,'dept','用工部门',4,30),
 (5,'position','岗位',3,40),(5,'job_level','职级',2,50),(5,'job_class','职类',2,60),
 (5,'job_level_class','职级职类',2,70),(5,'change_reason','调整原因',3,80);
 

@@ -61,17 +61,22 @@ SHEET_EXPORT_CONFIG = [
         "r.social_insurance_relation,r.non_compete_signed,r.non_compete_period "
         "FROM employment_record r LEFT JOIN employee e ON r.id_card_no=e.id_card_no "
         "ORDER BY r.id_card_no,r.start_date",
-        ['姓名[冗余]_real_name','身份证号_id_card_no','开始日期_start_date',
-         '结束日期_end_date','用工形式_record_type','用工公司_company',
+        ['姓名[冗余]_real_name','身份证号_id_card_no',
+         '本段开始日期_start_date',        # ★ 本次调岗/入职/晋升的起始日，同一人每行必须唯一
+         '本段结束日期_end_date',           # ★ 该段结束日；在职最新一行留空
+         '人员类型_record_type','用工公司_company',
          '劳动关系隶属_labor_relation_company','一级部门_dept_level1',
          '二级部门_dept_level2','三级部门_dept_level3','组别_group_name',
          '岗位名称_position_name','职级_job_level','职类_job_class',
          '职级职类_job_level_class','薪酬金额_salary_amount','变动原因_change_reason',
-         '司龄基准日_tenure_base_date','工前年限_pre_work_years','离职原因_end_reason',
+         '入职时间(司龄基准日)_tenure_base_date',  # ★ 首次入职日，同一人所有行填同一值
+         '工前年限_pre_work_years','结束原因_end_reason',
          '合同类型_contract_summary_type','合同到期日_contract_expire_date',
          '社保关系_social_insurance_relation','竞业限制签署_non_compete_signed',
          '竞业限制期限_non_compete_period'],
-        '【说明】唯一键=身份证号+开始日期；新增直接追加行；姓名列仅供查阅，导入时忽略。',
+        '【说明】唯一键=身份证号+本段开始日期；每次调岗/晋升/入职新增一行，同一人start_date不可重复。'
+        '★ tenure_base_date(入职时间/司龄基准日)=首次入职日，同一人所有行填同一值，不随调岗变化。'
+        '★ 在职员工最新一行end_date留空；历史行end_date必须填写。姓名列仅供查阅，导入时忽略。',
     ),
     (
         '教育经历', 'education_record',
@@ -175,7 +180,7 @@ SHEET_EXPORT_CONFIG = [
         "FROM salary_change_record r LEFT JOIN employee e ON r.id_card_no=e.id_card_no "
         "ORDER BY r.id_card_no,r.period",
         ['姓名[冗余]_real_name','身份证号_id_card_no','时间节点_period',
-         '公司_company','部门_dept','岗位_position','职级_job_level',
+         '用工公司_company','用工部门_dept','岗位_position','职级_job_level',
          '职类_job_class','职级职类_job_level_class','调整原因_change_reason'],
         '【说明】唯一键=身份证号+时间节点。',
     ),
@@ -296,7 +301,7 @@ def export_db_to_excel(db_file: str) -> bytes:
 # 各表的必填字段（用于缺失字段检测）
 REQUIRED_FIELDS = {
     '员工主表':     ['real_name', 'id_card_no'],
-    '任职记录':     ['id_card_no', 'start_date', 'record_type'],
+    '任职记录':     ['id_card_no', 'start_date', 'record_type', 'tenure_base_date'],
     '教育经历':     ['id_card_no', 'school_name', 'start_date'],
     '地址信息':     ['id_card_no', 'address_type'],
     '合同记录':     ['id_card_no', 'seq', 'start_date', 'contract_type'],
