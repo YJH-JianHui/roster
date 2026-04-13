@@ -6,28 +6,54 @@
     <title>员工人事信息档案</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Microsoft YaHei', '微软雅黑', sans-serif; background: #f0f2f5; min-height: 100vh; padding: 40px 0; }
+
+        body {
+            font-family: 'Microsoft YaHei', '微软雅黑', sans-serif;
+            min-height: 100vh;
+            padding: 60px 0;
+            background-color: #f0f2f5;
+            background-image:
+                radial-gradient(circle at 15% 20%, rgba(160, 190, 240, 0.3), transparent 40%),
+                radial-gradient(circle at 85% 80%, rgba(200, 180, 240, 0.25), transparent 40%);
+            background-attachment: fixed;
+        }
 
         .form-container {
             width: 794px;
             min-width: 794px;
-            background: #fff;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-            border-radius: 4px;
             padding: 40px;
             margin: 0 auto;
+            border-radius: 8px;
+
+            /* 核心毛玻璃效果与厚度保留 */
+            background: rgba(255, 255, 255, 0.35);
+            backdrop-filter: blur(25px) saturate(120%);
+            -webkit-backdrop-filter: blur(25px) saturate(120%);
+
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-top: 1px solid rgba(255, 255, 255, 0.9);
+            border-left: 1px solid rgba(255, 255, 255, 0.9);
+            box-shadow:
+                0 25px 45px rgba(0, 0, 0, 0.08),
+                0 4px 15px rgba(0, 0, 0, 0.03),
+                inset 1px 1px 2px rgba(255, 255, 255, 0.8),
+                inset -1px -1px 3px rgba(0, 0, 0, 0.05);
         }
+
         .form-main-title {
             text-align: center; font-size: 18px; font-weight: 700;
             color: #111; margin-bottom: 16px; letter-spacing: 2px;
+            text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
         }
 
         table.ft {
             width: 100%; border-collapse: collapse; font-size: 12px;
             table-layout: fixed;
         }
+
+        /* 稍微加深了网格线的对比度 */
         table.ft td {
-            border: 1px solid #aaa;
+            border: 1px solid rgba(160, 160, 160, 0.6);
             padding: 3px 4px;
             vertical-align: middle;
             word-break: break-all;
@@ -35,36 +61,39 @@
             height: 24px;
         }
 
+        /* 👑 优化点 1：字段名称（标签）变得更醒目 */
         table.ft .lbl {
-            background: #fafafa;
-            color: #444;
-            font-weight: 500;
+            background: rgba(230, 236, 244, 0.24); /* 底色变为浅灰蓝，增加与右侧数据的反差 */
+            color: #2c3e50; /* 文字改为深藏青色 */
+            font-weight: 600; /* 加粗，明确这是标题 */
             text-align: center;
             font-size: 10px;
         }
 
+        /* 👑 优化点 2：字段值变得更干净明亮 */
         table.ft .val {
-            color: #222;
+            background: rgba(255, 255, 255, 0.75); /* 底色更白更亮，突出重点内容 */
+            color: #000; /* 文字用纯黑色 */
+            font-weight: 500; /* 稍微提升一点饱满度 */
             font-size: 10px;
-            background: #fff;
             text-align: left;
             padding-left: 6px;
         }
 
         table.ft .sec-hd td {
-            background: #e8f0fe;
+            background: rgba(225, 235, 254, 0.7);
             color: #1a3a8f;
-            font-weight: 600;
+            font-weight: 700; /* 模块大标题加粗 */
             font-size: 12px;
             padding: 5px 12px;
-            border-color: #aab8e0;
+            border-color: rgba(160, 175, 220, 0.8);
             text-align: center;
         }
 
         .photo-cell {
             text-align: center; vertical-align: middle;
-            color: #bbb; font-size: 11px;
-            background: #fafafa; padding: 0 !important;
+            color: #888; font-size: 11px;
+            background: rgba(240, 242, 245, 0.6); padding: 0 !important;
             position: relative;
         }
         .photo-cell .photo-img-wrap {
@@ -84,7 +113,7 @@
             height: 100%; width: 100%; min-height: 120px; gap: 4px;
         }
         .photo-icon {
-            width: 28px; height: 28px; border: 1.5px dashed #ccc;
+            width: 28px; height: 28px; border: 1.5px dashed rgba(180,180,180,0.8);
             border-radius: 4px; display: flex; align-items: center; justify-content: center;
         }
 
@@ -139,16 +168,6 @@
         return val !== null && val !== undefined && val !== '' && val !== '—';
     }
 
-    /**
-     * 主表单渲染引擎
-     *
-     * 照片布局规则：
-     *   1. 照片 rowSpan 固定 = photoField.minR，不随字段数量变化
-     *   2. 照片旁（前 minR 行）：按正常流式格式排字段，排满 minR 行为止
-     *      - 不足 minR 行：空白行补齐
-     *      - 排满 minR 行后还有剩余字段：继续全宽正常排列
-     *   3. 没有照片字段：全宽正常流式渲染
-     */
     function renderForm(data, groups) {
         const tbody = document.getElementById('form-body');
         tbody.innerHTML = '';
@@ -157,7 +176,6 @@
             const activeFields = group.fields.filter(f => isValid(data[f.key]));
             if (activeFields.length === 0) return;
 
-            // 渲染模块标题
             const secTr = document.createElement('tr');
             secTr.className = 'sec-hd';
             secTr.innerHTML = `<td colspan="${TOTAL_COLS}">${group.title}</td>`;
@@ -167,7 +185,6 @@
             const nonPhotoFields = activeFields.filter(f => !f.isPhoto);
 
             if (!photoField) {
-                // 无照片：全宽流式渲染
                 splitFieldsIntoRows(nonPhotoFields, TOTAL_COLS).forEach(rowFields => {
                     const tr = document.createElement('tr');
                     appendFieldCells(tr, rowFields, TOTAL_COLS, data);
@@ -176,23 +193,17 @@
                 return;
             }
 
-            // ── 有照片 ──
-            const photoMinR = photoField.minR;   // 照片固定行数
-            const photoColW = photoField.vc;      // 照片列宽
-            const sideColW  = TOTAL_COLS - photoColW; // 照片旁可用列宽
+            const photoMinR = photoField.minR;
+            const photoColW = photoField.vc;
+            const sideColW  = TOTAL_COLS - photoColW;
 
-            // 照片旁：先把所有字段按 sideColW 分行
             const allSideRows = splitFieldsIntoRows(nonPhotoFields, sideColW);
-
-            // 照片旁最多取 photoMinR 行，超出的留给全宽区
             const insideRows  = allSideRows.slice(0, photoMinR);
             const outsideRows = allSideRows.slice(photoMinR);
 
-            // 渲染照片区（固定 photoMinR 行）
             for (let r = 0; r < photoMinR; r++) {
                 const tr = document.createElement('tr');
 
-                // 第一行插入照片单元格
                 if (r === 0) {
                     const ptd = document.createElement('td');
                     ptd.className = 'photo-cell';
@@ -202,7 +213,7 @@
                         ? `<div class="photo-img-wrap"><img src="${data[photoField.key]}"></div>`
                         : `<div class="photo-placeholder">
                                <div class="photo-icon">
-                                   <svg viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5" style="width:16px;height:16px;">
+                                   <svg viewBox="0 0 24 24" fill="none" stroke="rgba(150,150,150,0.8)" stroke-width="1.5" style="width:16px;height:16px;">
                                        <rect x="3" y="5" width="18" height="14" rx="2"/>
                                        <circle cx="12" cy="12" r="3"/>
                                        <path d="M9 5l1.5-2h3L15 5"/>
@@ -214,10 +225,8 @@
                 }
 
                 if (r < insideRows.length) {
-                    // 有字段：正常排列
                     appendFieldCells(tr, insideRows[r], sideColW, data);
                 } else {
-                    // 不足：补空白行
                     const emptyTd = document.createElement('td');
                     emptyTd.className = 'val';
                     emptyTd.colSpan = sideColW;
@@ -228,7 +237,6 @@
                 tbody.appendChild(tr);
             }
 
-            // 照片区结束后，超出的字段继续全宽排列
             outsideRows.forEach(rowFields => {
                 const tr = document.createElement('tr');
                 appendFieldCells(tr, rowFields, TOTAL_COLS, data);
@@ -237,11 +245,6 @@
         });
     }
 
-    /**
-     * 将字段列表按可用列宽切分成多行
-     * 每行字段的 (lc + vc) 之和不超过 availableCols
-     * vc=0 的弹性字段当作 1 列计入（布局时再弹性补齐）
-     */
     function splitFieldsIntoRows(fields, availableCols) {
         const rows = [];
         let currentRow = [];
@@ -262,9 +265,6 @@
         return rows;
     }
 
-    /**
-     * 向 tr 追加一行字段的单元格，弹性补齐到 availableCols
-     */
     function appendFieldCells(tr, items, availableCols, data) {
         let fixedSum = 0;
         let autoCount = 0;
@@ -278,7 +278,6 @@
         let remainderAuto = autoCount > 0 ? leftover % autoCount : 0;
 
         items.forEach((it, idx) => {
-            // 标签
             if (it.lc > 0) {
                 const tdL = document.createElement('td');
                 tdL.className = 'lbl';
@@ -287,7 +286,6 @@
                 tr.appendChild(tdL);
             }
 
-            // 值
             const tdV = document.createElement('td');
             tdV.className = 'val';
 
@@ -297,7 +295,6 @@
                 if (remainderAuto > 0) remainderAuto--;
             }
 
-            // 最后一个格子把剩余列补满
             const isLast = (idx === items.length - 1);
             if (isLast && autoCount === 0 && leftover > 0) {
                 finalVc += leftover;
@@ -309,18 +306,12 @@
         });
     }
 
-    /**
-     * 普通行渲染（无照片时使用）
-     */
     function flushRow(tbody, items, available, data, _photoField, _photoRowStatus) {
         const tr = document.createElement('tr');
         appendFieldCells(tr, items, available, data);
         tbody.appendChild(tr);
     }
 
-    /**
-     * 附表渲染
-     */
     function renderAppendix(appendixData, appendixLayout) {
         if (!appendixLayout) return;
         const tbody = document.getElementById('form-body');
