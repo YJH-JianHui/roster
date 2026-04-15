@@ -136,7 +136,7 @@ def get_employee_data(feishu_user_id):
 
     salary_changes_data = [dict(r) for r in conn.execute("""
         SELECT period, company, dept, position,
-               job_level, job_class, job_level_class, change_reason
+               job_level, job_class, job_level_class, remark
         FROM salary_change_record WHERE id_card_no = ? ORDER BY period
     """, (id_card_no,)).fetchall()]
 

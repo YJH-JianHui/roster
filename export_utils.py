@@ -176,12 +176,12 @@ SHEET_EXPORT_CONFIG = [
     (
         '薪酬调整记录', 'salary_change_record',
         "SELECT e.real_name,r.id_card_no,r.period,r.company,r.dept,r.position,"
-        "r.job_level,r.job_class,r.job_level_class,r.change_reason "
+        "r.job_level,r.job_class,r.job_level_class,r.remark "
         "FROM salary_change_record r LEFT JOIN employee e ON r.id_card_no=e.id_card_no "
         "ORDER BY r.id_card_no,r.period",
         ['姓名[冗余]_real_name','身份证号_id_card_no','时间节点_period',
          '用工公司_company','用工部门_dept','岗位_position','职级_job_level',
-         '职类_job_class','职级职类_job_level_class','调整原因_change_reason'],
+         '职类_job_class','职级职类_job_level_class','备注_remark'],
         '【说明】唯一键=身份证号+时间节点。',
     ),
     (

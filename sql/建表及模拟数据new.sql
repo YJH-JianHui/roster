@@ -221,7 +221,7 @@ CREATE TABLE "salary_change_record" (
   "job_level"                TEXT,
   "job_class"                TEXT,
   "job_level_class"          TEXT,
-  "change_reason"            TEXT,
+  "remark"                   TEXT,
   PRIMARY KEY ("id_card_no", "period"),
   FOREIGN KEY ("id_card_no") REFERENCES "employee" ("id_card_no") ON DELETE CASCADE
 );
@@ -444,7 +444,7 @@ INSERT INTO form_appendix_col (appendix_id, field_key, label, colspan, sort_orde
 INSERT INTO form_appendix_col (appendix_id, field_key, label, colspan, sort_order) VALUES
 (5,'period','时间',4,10),(5,'company','用工公司',4,20),(5,'dept','用工部门',4,30),
 (5,'position','岗位',3,40),(5,'job_level','职级',2,50),(5,'job_class','职类',2,60),
-(5,'job_level_class','职级职类',2,70),(5,'change_reason','调整原因',3,80);
+(5,'job_level_class','职级职类',2,70),(5,'remark','备注',3,80);
 
 INSERT INTO form_appendix_col (appendix_id, field_key, label, colspan, sort_order) VALUES
 (6,'cert_category','资质类别',3,10),(6,'cert_name','资质名称',4,20),(6,'cert_major','所属专业',4,30),
@@ -565,7 +565,7 @@ INSERT INTO work_experience (id_card_no, company_name, start_date, industry, com
 ('530102198805151234','科海网络','2010-07-01','互联网IT','民营企业','初级Java','2011-02-28','公司解散','周杰伦','13000000001'),
 ('530102198805151234','云软开发','2011-10-01','企业软件','合资企业','Java开发','2012-02-28','寻求更好发展','刘德华','13000000002');
 
-INSERT INTO salary_change_record (id_card_no, period, company, dept, position, job_level, job_class, job_level_class, change_reason) VALUES
+INSERT INTO salary_change_record (id_card_no, period, company, dept, position, job_level, job_class, job_level_class, remark) VALUES
 ('530102198805151234','2014-07-01','昆明鼎承科技','技术部','高级Java工程师','4','T3','1-T3','转正调薪'),
 ('530102198805151234','2021-01-01','昆明鼎承科技','技术部','高级架构师','3','T4','2-T5','年度晋升调薪');
 
