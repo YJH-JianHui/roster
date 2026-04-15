@@ -12,14 +12,14 @@ app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_host=1, x_proto=1, x_port=1)
 
 # ── 从环境变量读取配置 ──────────────────────────────────────
-app.secret_key = os.environ['FLASK_SECRET_KEY']
+app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'dev_secret_local')
 app.permanent_session_lifetime = timedelta(hours=8)
 
-FEISHU_APP_ID       = os.environ['FEISHU_APP_ID']
-FEISHU_APP_SECRET   = os.environ['FEISHU_APP_SECRET']
-FEISHU_REDIRECT_URI = os.environ['FEISHU_REDIRECT_URI']
-BASE_PROFILE_URL    = os.environ['BASE_PROFILE_URL']
-DB_FILE             = os.environ.get('DB_FILE', 'data/DB.db')
+FEISHU_APP_ID       = os.environ.get('FEISHU_APP_ID',       'cli_a952d58519fb9bc4')
+FEISHU_APP_SECRET   = os.environ.get('FEISHU_APP_SECRET',   'fI0doVKtNWNwv4SVTyxjPgZEFDwsh3vG')
+FEISHU_REDIRECT_URI = os.environ.get('FEISHU_REDIRECT_URI', 'http://127.0.0.1:8098/auth/callback')
+BASE_PROFILE_URL    = os.environ.get('BASE_PROFILE_URL',    'http://127.0.0.1:8098')
+DB_FILE             = os.environ.get('DB_FILE',             'data/DB.db')
 
 # ──────────────────────────────────────────────────────────
 

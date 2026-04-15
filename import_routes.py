@@ -73,7 +73,7 @@ SHEET_CONFIG = {
     },
     '奖惩记录': {
         'table': 'reward_punishment_record',
-        'unique_keys': ['id_card_no', 'record_date', 'record_type'],
+        'unique_keys': ['id_card_no', 'record_date', 'record_type', 'reason'],
         'ignore_cols': ['real_name'],
     },
     '入职前工作经历': {
@@ -127,13 +127,15 @@ def import_sheet(conn, ws, sheet_name, cfg):
     if not rows:
         return stats
 
-    field_keys     = parse_header(rows[0])
-    data_rows      = rows[1:]
-    table          = cfg['table']
-    unique_keys    = cfg['unique_keys']
-    ignore_cols    = set(cfg.get('ignore_cols', []))
+    field_keys = parse_header(rows[0])
+    data_rows = rows[1:]
+    table = cfg['table']
+    unique_keys = cfg['unique_keys']
+    ignore_cols = set(cfg.get('ignore_cols', []))
     name_is_member = cfg.get('name_is_member', False)
-    resolve_emp    = cfg.get('resolve_emp_record', False)
+    resolve_emp = cfg.get('resolve_emp_record', False)
+
+    seen_keys = set()  # 记录本次 Excel 内已处理过的唯一键组合，用于检测行内重复
 
     for row_idx, row in enumerate(data_rows, start=4):
         raw = {}
@@ -146,6 +148,7 @@ def import_sheet(conn, ws, sheet_name, cfg):
                 val = None
             raw[key] = val
 
+        # 整行为空则跳过，不计错误
         if all(v is None for v in raw.values()):
             stats['skipped'] += 1
             continue
@@ -176,7 +179,16 @@ def import_sheet(conn, ws, sheet_name, cfg):
                 ).fetchone()
                 record['employment_record_id'] = emp_row[0] if emp_row else None
 
-            cols         = ', '.join(record.keys())
+            # ── Excel 内部重复行检测 ──────────────────────────────
+            uk_vals = tuple(str(record.get(k, '') or '') for k in unique_keys)
+            if uk_vals in seen_keys:
+                raise ValueError(
+                    f"Excel内重复行：{dict(zip(unique_keys, uk_vals))}"
+                )
+            seen_keys.add(uk_vals)
+            # ──────────────────────────────────────────────────────
+
+            cols = ', '.join(record.keys())
             placeholders = ', '.join('?' for _ in record)
             conn.execute(
                 f"INSERT INTO {table} ({cols}) VALUES ({placeholders})",
@@ -186,8 +198,8 @@ def import_sheet(conn, ws, sheet_name, cfg):
 
         except Exception as e:
             stats['errors'].append({
-                'row':  row_idx,
-                'msg':  str(e),
+                'row': row_idx,
+                'msg': str(e),
             })
 
     return stats

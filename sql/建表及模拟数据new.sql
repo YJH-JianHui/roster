@@ -191,7 +191,7 @@ CREATE TABLE "reward_punishment_record" (
   "category"                 TEXT,
   "reason"                   TEXT,
   "issuer"                   TEXT,
-  PRIMARY KEY ("id_card_no", "record_date", "record_type"),
+  PRIMARY KEY ("id_card_no", "record_date", "record_type", "reason"),
   FOREIGN KEY ("id_card_no") REFERENCES "employee" ("id_card_no") ON DELETE CASCADE
 );
 

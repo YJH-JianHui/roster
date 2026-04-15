@@ -152,13 +152,13 @@ SHEET_EXPORT_CONFIG = [
     ),
     (
         '奖惩记录', 'reward_punishment_record',
-        "SELECT e.real_name,r.id_card_no,r.record_type,r.record_date,r.category,"
-        "r.reason,r.issuer "
+        "SELECT e.real_name,r.id_card_no,r.record_type,r.record_date,r.reason,"
+        "r.category,r.issuer "
         "FROM reward_punishment_record r LEFT JOIN employee e ON r.id_card_no=e.id_card_no "
         "ORDER BY r.id_card_no,r.record_date",
         ['姓名[冗余]_real_name','身份证号_id_card_no','类型_record_type',
-         '日期_record_date','类别_category','原因_reason','签发单位_issuer'],
-        '【说明】唯一键=身份证号+类型+日期。',
+         '日期_record_date','原因_reason','类别_category','签发单位_issuer'],
+        '【说明】唯一键=身份证号+类型+日期+原因。',
     ),
     (
         '入职前工作经历', 'work_experience',
@@ -308,7 +308,7 @@ REQUIRED_FIELDS = {
     '家庭成员':     ['id_card_no', 'relation', 'real_name'],
     '职称职业资格': ['id_card_no', 'cert_name', 'cert_category'],
     '培训记录':     ['id_card_no', 'training_name', 'start_date'],
-    '奖惩记录':     ['id_card_no', 'record_date', 'record_type'],
+    '奖惩记录':     ['id_card_no', 'record_date', 'record_type', 'reason'],
     '入职前工作经历':['id_card_no', 'company_name', 'start_date'],
     '薪酬调整记录': ['id_card_no', 'period'],
     '飞书账号映射': ['id_card_no', 'feishu_user_id'],
