@@ -44,11 +44,6 @@ SHEET_CONFIG = {
         'unique_keys': ['id_card_no', 'school_name', 'start_date'],
         'ignore_cols': ['real_name'],
     },
-    '地址信息': {
-        'table': 'address_record',
-        'unique_keys': ['id_card_no', 'address_type'],
-        'ignore_cols': ['real_name'],
-    },
     '合同记录': {
         'table': 'contract_record',
         'unique_keys': ['id_card_no', 'seq', 'start_date'],
@@ -94,7 +89,7 @@ SHEET_CONFIG = {
 }
 
 IMPORT_ORDER = [
-    '员工主表', '任职记录', '教育经历', '地址信息', '合同记录',
+    '员工主表', '任职记录', '教育经历', '合同记录',
     '家庭成员', '职称职业资格', '培训记录', '奖惩记录', '入职前工作经历',
     '薪酬调整记录', '飞书账号映射',
 ]
@@ -102,7 +97,7 @@ IMPORT_ORDER = [
 CLEAR_ORDER = [
     '飞书账号映射', '薪酬调整记录', '入职前工作经历', '奖惩记录',
     '培训记录', '职称职业资格', '家庭成员', '合同记录',
-    '地址信息', '教育经历', '任职记录', '员工主表',
+    '教育经历', '任职记录', '员工主表',
 ]
 
 

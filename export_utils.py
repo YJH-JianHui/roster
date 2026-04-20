@@ -21,7 +21,7 @@ C_TITLE_FG   = "FFFFFF"   # 白字
 C_DESC_BG    = "E2EFDA"   # 浅绿，说明行背景
 C_DESC_FG    = "7F7F7F"   # 灰字
 C_HDR_BG     = "D6E4F0"   # 浅蓝，普通列头
-C_HDR_KEY_BG = "FFC000"   # 橙色，唯一键列头（身份证号）
+C_HDR_KEY_BG = "FFC000"   # 橙色，唯一键列头（公民身份号码）
 C_HDR_FG     = "1F4E79"   # 深蓝字
 C_DATA_EVEN  = "FFFFFF"   # 数据行白
 C_DATA_ODD   = "F5F9FF"   # 数据行浅蓝间隔
@@ -39,29 +39,42 @@ SHEET_EXPORT_CONFIG = [
         "height,weight,blood_type,id_card_authority,id_card_issue_date,"
         "id_card_expire_date,current_status,phone,email_personal,email_work,"
         "emergency_contact_name,emergency_contact_relation,emergency_contact_phone,"
+        "domicile_province,domicile_city,domicile_district,domicile_address_detail,"
+        "domicile_address_detail_extra,domicile_postal_code,domicile_hukou_type,"
+        "current_province,current_city,current_district,current_address_detail,"
+        "current_address_detail_extra,current_postal_code,"
+        "hire_date,tenure_base_date,pre_work_years,"
         "photo_path FROM employee ORDER BY id_card_no",
-        ['姓名_real_name','身份证号_id_card_no','性别_gender','出生年月_birth_date',
-         '民族_ethnicity','政治面貌_political_status','户籍属性_hometown_type',
-         '婚姻状况_marital_status','籍贯_native_place','出生地_birthplace',
-         '曾用名_former_name','身高(cm)_height','体重(kg)_weight','血型_blood_type',
-         '发证机关_id_card_authority','发证日期_id_card_issue_date',
-         '证件到期日_id_card_expire_date','当前状态_current_status',
-         '联系方式_phone','个人邮箱_email_personal','工作邮箱_email_work',
-         '紧急联系人_emergency_contact_name','与本人关系_emergency_contact_relation',
-         '紧急电话_emergency_contact_phone','照片路径_photo_path'],
-        '【说明】每名员工一行；身份证号为全系统唯一标识，不可修改。',
+        ['姓名_real_name', '公民身份号码_id_card_no', '性别_gender', '出生年月_birth_date',
+         '民族_ethnicity', '政治面貌_political_status', '户籍属性_hometown_type',
+         '婚姻状况_marital_status', '籍贯_native_place', '出生地_birthplace',
+         '曾用名_former_name', '身高(cm)_height', '体重(kg)_weight', '血型_blood_type',
+         '发证机关_id_card_authority', '发证日期_id_card_issue_date',
+         '证件到期日_id_card_expire_date', '当前状态_current_status',
+         '联系方式_phone', '个人邮箱_email_personal', '工作邮箱_email_work',
+         '紧急联系人_emergency_contact_name', '与本人关系_emergency_contact_relation',
+         '紧急电话_emergency_contact_phone',
+         '户籍省_domicile_province', '户籍市_domicile_city', '户籍区/县_domicile_district',
+         '户籍详细地址_domicile_address_detail', '户籍补充地址_domicile_address_detail_extra',
+         '户籍邮编_domicile_postal_code', '户口类型_domicile_hukou_type',
+         '现住省_current_province', '现住市_current_city', '现住区/县_current_district',
+         '现住详细地址_current_address_detail', '现住补充地址_current_address_detail_extra',
+         '现住邮编_current_postal_code',
+         '入职时间_hire_date', '司龄基准日_tenure_base_date', '工前年限_pre_work_years',
+         '照片路径_photo_path'],
+        '【说明】所有基础信息（含证件、地址）都在此表维护。每名员工一行；公民身份号码为唯一标识。',
     ),
     (
         '任职记录', 'employment_record',
         "SELECT e.real_name,r.id_card_no,r.start_date,r.end_date,r.record_type,"
         "r.company,r.labor_relation_company,r.dept_level1,r.dept_level2,r.dept_level3,"
         "r.group_name,r.position_name,r.job_level,r.job_class,r.job_level_class,"
-        "r.salary_amount,r.change_reason,r.tenure_base_date,r.pre_work_years,"
+        "r.salary_amount,r.change_reason,"
         "r.end_reason,r.contract_summary_type,r.contract_expire_date,"
         "r.social_insurance_relation,r.non_compete_signed,r.non_compete_period "
         "FROM employment_record r LEFT JOIN employee e ON r.id_card_no=e.id_card_no "
         "ORDER BY r.id_card_no,r.start_date",
-        ['姓名[冗余]_real_name','身份证号_id_card_no',
+        ['姓名[冗余]_real_name','公民身份号码_id_card_no',
          '本段开始日期_start_date',        # ★ 本次调岗/入职/晋升的起始日，同一人每行必须唯一
          '本段结束日期_end_date',           # ★ 该段结束日；在职最新一行留空
          '人员类型_record_type','用工公司_company',
@@ -69,12 +82,11 @@ SHEET_EXPORT_CONFIG = [
          '二级部门_dept_level2','三级部门_dept_level3','组别_group_name',
          '岗位名称_position_name','职级_job_level','职类_job_class',
          '职级职类_job_level_class','薪酬金额_salary_amount','变动原因_change_reason',
-         '入职时间(司龄基准日)_tenure_base_date',  # ★ 首次入职日，同一人所有行填同一值
-         '工前年限_pre_work_years','结束原因_end_reason',
+         '结束原因_end_reason',
          '合同类型_contract_summary_type','合同到期日_contract_expire_date',
          '社保关系_social_insurance_relation','竞业限制签署_non_compete_signed',
          '竞业限制期限_non_compete_period'],
-        '【说明】唯一键=身份证号+本段开始日期；每次调岗/晋升/入职新增一行，同一人start_date不可重复。'
+        '【说明】唯一键=公民身份号码+本段开始日期；每次调岗/晋升/入职新增一行，同一人start_date不可重复。'
         '★ tenure_base_date(入职时间/司龄基准日)=首次入职日，同一人所有行填同一值，不随调岗变化。'
         '★ 在职员工最新一行end_date留空；历史行end_date必须填写。姓名列仅供查阅，导入时忽略。',
     ),
@@ -86,25 +98,13 @@ SHEET_EXPORT_CONFIG = [
         "r.graduation_date,r.diploma_no,r.degree_cert_no "
         "FROM education_record r LEFT JOIN employee e ON r.id_card_no=e.id_card_no "
         "ORDER BY r.id_card_no,r.start_date",
-        ['姓名[冗余]_real_name','身份证号_id_card_no','院校名称_school_name',
+        ['姓名[冗余]_real_name','公民身份号码_id_card_no','院校名称_school_name',
          '入学时间_start_date','是否最高学历_is_highest','学历_degree_level',
          '学位_degree_type','学习方式_degree_status','院校属性_school_type',
          '是否985/211_is_985_211','专业_major','辅修专业_minor_major',
          '研究方向_research_direction','学制(年)_study_duration',
          '毕业时间_graduation_date','毕业证编号_diploma_no','学位证编号_degree_cert_no'],
-        '【说明】唯一键=身份证号+院校名称+入学时间；is_highest填1或0。',
-    ),
-    (
-        '地址信息', 'address_record',
-        "SELECT e.real_name,r.id_card_no,r.address_type,r.province,r.city,r.district,"
-        "r.address_detail,r.address_detail_extra,r.postal_code,r.hukou_type,r.is_current "
-        "FROM address_record r LEFT JOIN employee e ON r.id_card_no=e.id_card_no "
-        "ORDER BY r.id_card_no,r.address_type",
-        ['姓名[冗余]_real_name','身份证号_id_card_no','地址类型_address_type',
-         '省_province','市_city','区/县_district','详细地址_address_detail',
-         '补充地址_address_detail_extra','邮编_postal_code',
-         '户籍类型_hukou_type','是否当前_is_current'],
-        '【说明】唯一键=身份证号+地址类型；is_current填1或0。',
+        '【说明】唯一键=公民身份号码+院校名称+入学时间；is_highest填1或0。',
     ),
     (
         '合同记录', 'contract_record',
@@ -112,9 +112,9 @@ SHEET_EXPORT_CONFIG = [
         "r.contract_type,r.remark "
         "FROM contract_record r LEFT JOIN employee e ON r.id_card_no=e.id_card_no "
         "ORDER BY r.id_card_no,r.seq,r.start_date",
-        ['姓名[冗余]_real_name','身份证号_id_card_no','签订次数_seq',
+        ['姓名[冗余]_real_name','公民身份号码_id_card_no','签订次数_seq',
          '开始日期_start_date','到期日期_end_date','合同类型_contract_type','备注_remark'],
-        '【说明】唯一键=身份证号+签订次数seq+开始日期；新签合同递增seq。',
+        '【说明】唯一键=公民身份号码+签订次数seq+开始日期；新签合同递增seq。',
     ),
     (
         '家庭成员', 'family_member',
@@ -123,10 +123,10 @@ SHEET_EXPORT_CONFIG = [
         "r.position,r.phone "
         "FROM family_member r LEFT JOIN employee e ON r.id_card_no=e.id_card_no "
         "ORDER BY r.id_card_no",
-        ['姓名[冗余]_real_name','身份证号_id_card_no','称谓_relation',
+        ['姓名[冗余]_real_name','公民身份号码_id_card_no','称谓_relation',
          '成员姓名_member_name','出生年月_birth_date','政治面貌_political_status',
          '学历_education_level','工作单位_work_unit','职务_position','联系方式_phone'],
-        '【说明】唯一键=身份证号+称谓+成员姓名；新增成员直接追加行。',
+        '【说明】唯一键=公民身份号码+称谓+成员姓名；新增成员直接追加行。',
     ),
     (
         '职称职业资格', 'certificate_record',
@@ -134,10 +134,10 @@ SHEET_EXPORT_CONFIG = [
         "r.cert_level,r.issue_date,r.cert_no,r.expire_date "
         "FROM certificate_record r LEFT JOIN employee e ON r.id_card_no=e.id_card_no "
         "ORDER BY r.id_card_no,r.cert_category",
-        ['姓名[冗余]_real_name','身份证号_id_card_no','资质类别_cert_category',
+        ['姓名[冗余]_real_name','公民身份号码_id_card_no','资质类别_cert_category',
          '资质名称_cert_name','所属专业_cert_major','资质等级_cert_level',
          '取证时间_issue_date','证书编号_cert_no','到期时间_expire_date'],
-        '【说明】唯一键=身份证号+资质名称+资质类别。',
+        '【说明】唯一键=公民身份号码+资质名称+资质类别。',
     ),
     (
         '培训记录', 'training_record',
@@ -145,10 +145,10 @@ SHEET_EXPORT_CONFIG = [
         "r.training_type,r.training_org,r.result,r.cert_obtained "
         "FROM training_record r LEFT JOIN employee e ON r.id_card_no=e.id_card_no "
         "ORDER BY r.id_card_no,r.start_date",
-        ['姓名[冗余]_real_name','身份证号_id_card_no','项目名称_training_name',
+        ['姓名[冗余]_real_name','公民身份号码_id_card_no','项目名称_training_name',
          '开始时间_start_date','结束时间_end_date','培训类型_training_type',
          '培训机构_training_org','考核结果_result','获得证书_cert_obtained'],
-        '【说明】唯一键=身份证号+项目名称+开始时间。',
+        '【说明】唯一键=公民身份号码+项目名称+开始时间。',
     ),
     (
         '奖惩记录', 'reward_punishment_record',
@@ -156,9 +156,9 @@ SHEET_EXPORT_CONFIG = [
         "r.category,r.issuer "
         "FROM reward_punishment_record r LEFT JOIN employee e ON r.id_card_no=e.id_card_no "
         "ORDER BY r.id_card_no,r.record_date",
-        ['姓名[冗余]_real_name','身份证号_id_card_no','类型_record_type',
+        ['姓名[冗余]_real_name','公民身份号码_id_card_no','类型_record_type',
          '日期_record_date','原因_reason','类别_category','签发单位_issuer'],
-        '【说明】唯一键=身份证号+类型+日期+原因。',
+        '【说明】唯一键=公民身份号码+类型+日期+原因。',
     ),
     (
         '入职前工作经历', 'work_experience',
@@ -167,11 +167,11 @@ SHEET_EXPORT_CONFIG = [
         "r.reference_phone "
         "FROM work_experience r LEFT JOIN employee e ON r.id_card_no=e.id_card_no "
         "ORDER BY r.id_card_no,r.start_date",
-        ['姓名[冗余]_real_name','身份证号_id_card_no','工作单位_company_name',
+        ['姓名[冗余]_real_name','公民身份号码_id_card_no','工作单位_company_name',
          '开始时间_start_date','结束时间_end_date','行业_industry',
          '单位属性_company_type','职务_position','离职原因_leave_reason',
          '证明人_reference_person','证明电话_reference_phone'],
-        '【说明】唯一键=身份证号+工作单位+开始时间。',
+        '【说明】唯一键=公民身份号码+工作单位+开始时间。',
     ),
     (
         '薪酬调整记录', 'salary_change_record',
@@ -179,18 +179,18 @@ SHEET_EXPORT_CONFIG = [
         "r.job_level,r.job_class,r.job_level_class,r.remark "
         "FROM salary_change_record r LEFT JOIN employee e ON r.id_card_no=e.id_card_no "
         "ORDER BY r.id_card_no,r.period",
-        ['姓名[冗余]_real_name','身份证号_id_card_no','时间节点_period',
+        ['姓名[冗余]_real_name','公民身份号码_id_card_no','时间节点_period',
          '用工公司_company','用工部门_dept','岗位_position','职级_job_level',
          '职类_job_class','职级职类_job_level_class','备注_remark'],
-        '【说明】唯一键=身份证号+时间节点。',
+        '【说明】唯一键=公民身份号码+时间节点。',
     ),
     (
         '飞书账号映射', 'feishu_user_map',
         "SELECT e.real_name,r.id_card_no,r.feishu_user_id "
         "FROM feishu_user_map r LEFT JOIN employee e ON r.id_card_no=e.id_card_no "
         "ORDER BY r.id_card_no",
-        ['姓名[冗余]_real_name','身份证号_id_card_no','飞书UserID_feishu_user_id'],
-        '【说明】唯一键=身份证号；每个员工一行记录。',
+        ['姓名[冗余]_real_name','公民身份号码_id_card_no','飞书UserID_feishu_user_id'],
+        '【说明】唯一键=公民身份号码；每个员工一行记录。',
     ),
 ]
 
@@ -301,9 +301,8 @@ def export_db_to_excel(db_file: str) -> bytes:
 # 各表的必填字段（用于缺失字段检测）
 REQUIRED_FIELDS = {
     '员工主表':     ['real_name', 'id_card_no'],
-    '任职记录':     ['id_card_no', 'start_date', 'record_type', 'tenure_base_date'],
+    '任职记录':     ['id_card_no', 'start_date', 'record_type'],
     '教育经历':     ['id_card_no', 'school_name', 'start_date'],
-    '地址信息':     ['id_card_no', 'address_type'],
     '合同记录':     ['id_card_no', 'seq', 'start_date', 'contract_type'],
     '家庭成员':     ['id_card_no', 'relation', 'real_name'],
     '职称职业资格': ['id_card_no', 'cert_name', 'cert_category'],
@@ -318,7 +317,6 @@ REQUIRED_FIELDS = {
 SUB_TABLE_QUERY = {
     '任职记录':     "SELECT id_card_no FROM employment_record",
     '教育经历':     "SELECT id_card_no FROM education_record",
-    '地址信息':     "SELECT id_card_no FROM address_record",
     '合同记录':     "SELECT id_card_no FROM contract_record",
     '家庭成员':     "SELECT id_card_no FROM family_member",
     '职称职业资格': "SELECT id_card_no FROM certificate_record",
@@ -380,7 +378,7 @@ def build_import_report(results: dict, db_file: str, import_excel=None) -> bytes
         ["Sheet名称", "写入行数", "跳过空行", "错误行数", "主表未覆盖员工数", "状态"],
         [20, 12, 12, 12, 20, 10])
 
-    # 查主表所有身份证号
+    # 查主表所有公民身份号码
     conn = sqlite3.connect(db_file)
     all_ids = {r[0] for r in conn.execute("SELECT id_card_no FROM employee").fetchall()}
 
@@ -466,7 +464,7 @@ def build_import_report(results: dict, db_file: str, import_excel=None) -> bytes
 
             if missing_emps:
                 _report_header_inline(ws, cur_row,
-                    ["类型", "身份证号", "姓名", "说明"], [8, 22, 14, 40])
+                    ["类型", "公民身份号码", "姓名", "说明"], [8, 22, 14, 40])
                 cur_row += 1
                 for id_no, name in missing_emps:
                     _report_cell(ws, cur_row, 1, "未覆盖", bg=RC_MISS_BG, bold=True)
@@ -490,7 +488,7 @@ def build_import_report(results: dict, db_file: str, import_excel=None) -> bytes
             if missing_field_rows:
                 cur_row += 1
                 _report_header_inline(ws, cur_row,
-                    ["类型", "Excel行号", "身份证号", "缺失字段"], [8, 12, 22, 50])
+                    ["类型", "Excel行号", "公民身份号码", "缺失字段"], [8, 12, 22, 50])
                 cur_row += 1
                 for mfr in missing_field_rows:
                     _report_cell(ws, cur_row, 1, "缺失字段", bg=RC_WARN_BG, bold=True)
@@ -556,7 +554,7 @@ def _analyze_missing_fields(wb_import, sheet_name, required_keys):
         if missing:
             result.append({
                 'row':        ri,
-                'id_card_no': raw.get('id_card_no') or '（无身份证号）',
+                'id_card_no': raw.get('id_card_no') or '（无公民身份号码）',
                 'missing':    '、'.join(missing),
             })
 

@@ -173,7 +173,8 @@
         tbody.innerHTML = '';
 
         groups.forEach(group => {
-            const activeFields = group.fields.filter(f => isValid(data[f.key]));
+            const activeFields = group.fields;
+            // const activeFields = group.fields.filter(f => isValid(data[f.key]));
             if (activeFields.length === 0) return;
 
             const secTr = document.createElement('tr');
@@ -195,11 +196,45 @@
 
             const photoMinR = photoField.minR;
             const photoColW = photoField.vc;
-            const sideColW  = TOTAL_COLS - photoColW;
+            const sideColW  = TOTAL_COLS - photoColW; // 旁边宽度 20
 
-            const allSideRows = splitFieldsIntoRows(nonPhotoFields, sideColW);
-            const insideRows  = allSideRows.slice(0, photoMinR);
-            const outsideRows = allSideRows.slice(photoMinR);
+            // 修复：动态分组，照片旁边的按 20 限制，下方的按 24 限制
+            let insideRows = [];
+            let outsideRows = [];
+            let currentRow = [];
+            let usedCols = 0;
+            let isInside = true;
+
+            nonPhotoFields.forEach(field => {
+                let maxCols = isInside ? sideColW : TOTAL_COLS;
+                const weight = (field.lc || 0) + (field.vc || 0) || 1;
+
+                // 如果当前行塞不下，就折行
+                if (usedCols + weight > maxCols && currentRow.length > 0) {
+                    if (isInside) {
+                        insideRows.push(currentRow);
+                        if (insideRows.length >= photoMinR) {
+                            isInside = false; // 右侧行数塞满了，切换到照片下方区域
+                        }
+                    } else {
+                        outsideRows.push(currentRow);
+                    }
+                    currentRow = [];
+                    usedCols = 0;
+                    maxCols = isInside ? sideColW : TOTAL_COLS; // 更新新一行的宽度限制
+                }
+                currentRow.push(field);
+                usedCols += weight;
+            });
+
+            // 最后一行的收尾工作
+            if (currentRow.length > 0) {
+                if (isInside && insideRows.length < photoMinR) {
+                    insideRows.push(currentRow);
+                } else {
+                    outsideRows.push(currentRow);
+                }
+            }
 
             for (let r = 0; r < photoMinR; r++) {
                 const tr = document.createElement('tr');

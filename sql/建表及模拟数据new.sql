@@ -52,7 +52,28 @@ CREATE TABLE "employee" (
   "emergency_contact_name"   TEXT,
   "emergency_contact_relation" TEXT,
   "emergency_contact_phone"  TEXT,
-  "photo_path"               TEXT
+  "photo_path"               TEXT,
+
+  -- 户籍地明细字段
+  "domicile_province"              TEXT,
+  "domicile_city"                  TEXT,
+  "domicile_district"              TEXT,
+  "domicile_address_detail"        TEXT,
+  "domicile_address_detail_extra"  TEXT,
+  "domicile_postal_code"           TEXT,
+  "domicile_hukou_type"            TEXT,
+
+  -- 现住址明细字段
+  "current_province"               TEXT,
+  "current_city"                   TEXT,
+  "current_district"               TEXT,
+  "current_address_detail"         TEXT,
+  "current_address_detail_extra"   TEXT,
+  "current_postal_code"            TEXT,
+
+  "tenure_base_date"               TEXT,
+  "hire_date"                      TEXT,
+  "pre_work_years"                 REAL DEFAULT 0
 );
 
 -- 任职记录：保留自增 id 供合同记录引用
@@ -74,8 +95,6 @@ CREATE TABLE "employment_record" (
   "change_reason"            TEXT,
   "start_date"               TEXT NOT NULL,
   "end_date"                 TEXT,
-  "tenure_base_date"         TEXT,
-  "pre_work_years"           REAL DEFAULT 0,
   "end_reason"               TEXT,
   "transfer_from_record_id"  INTEGER,
   "contract_summary_type"    TEXT,
@@ -289,77 +308,77 @@ CREATE TABLE "form_appendix_col" (
 -- ============================================================
 CREATE VIEW vw_employee_profile AS
 SELECT
-    e.id_card_no,
-    e.photo_path AS photo,
-    e.real_name AS name,
-    e.gender,
+    e.id_card_no, e.photo_path AS photo, e.real_name AS name, e.gender,
     CAST((julianday('now') - julianday(e.birth_date || '-01')) / 365.25 AS INTEGER) AS age,
-    e.birth_date, e.ethnicity,
-    e.native_place AS native, e.birthplace, e.former_name AS alias,
-    e.marital_status AS marital, e.political_status AS party,
-    e.hometown_type AS domicile_type,
-    e.height, e.weight, e.blood_type,
-    e.phone AS mobile, e.email_personal AS email, e.email_work,
-    e.emergency_contact_name AS emergency,
-    e.emergency_contact_relation AS emergency_relation,
-    e.emergency_contact_phone AS emergencyTel,
-    e.current_status,
-    e.id_card_no AS idNumber,
-    e.id_card_authority, e.id_card_issue_date, e.id_card_expire_date,
-    CASE
-        WHEN e.height IS NOT NULL AND e.weight IS NOT NULL
-            THEN CAST(e.height AS TEXT) || 'cm / ' || CAST(e.weight AS TEXT) || 'kg'
-        WHEN e.height IS NOT NULL
-            THEN CAST(e.height AS TEXT) || 'cm'
-        WHEN e.weight IS NOT NULL
-            THEN CAST(e.weight AS TEXT) || 'kg'
-        ELSE NULL
-    END AS height_weight,
+    e.birth_date, e.ethnicity, e.native_place AS native, e.birthplace, e.former_name AS alias,
+    e.marital_status AS marital, e.political_status AS party, e.hometown_type AS domicile_type,
+    e.height, e.weight, e.blood_type, e.phone AS mobile, e.email_personal AS email, e.email_work,
+    e.emergency_contact_name AS emergency, e.emergency_contact_relation AS emergency_relation, e.emergency_contact_phone AS emergencyTel,
+    e.current_status, e.id_card_no AS idNumber, e.id_card_authority, e.id_card_issue_date, e.id_card_expire_date,
 
+    -- 任职信息基础字段（保留自任职记录表）
     emp.company AS current_company, emp.labor_relation_company,
     emp.dept_level1, emp.dept_level2, emp.dept_level3, emp.group_name,
     emp.position_name AS position,
-    emp.job_class, emp.job_level, emp.job_level_class,
     emp.record_type,
-    -- 当前岗位开始时间（最新一次调岗/晋升的起始日）
-    emp.start_date AS position_start_date,
-    -- 真实入职时间（司龄基准日，贯穿所有任职记录保持不变）
-    emp.tenure_base_date AS hire_date,
+
+    -- ★ 核心修改：职级、职类、职级职类改为从薪酬调整记录表（scr）获取最新值
+    scr.job_level,
+    scr.job_class,
+    scr.job_level_class,
+
+    -- 动态追溯当前岗位的连续起始时间
+    (
+        SELECT MIN(r1.start_date)
+        FROM employment_record r1
+        WHERE r1.id_card_no = e.id_card_no
+          AND r1.start_date <= emp.start_date
+          AND NOT EXISTS (
+              SELECT 1
+              FROM employment_record r2
+              WHERE r2.id_card_no = e.id_card_no
+                AND r2.start_date >= r1.start_date
+                AND r2.start_date <= emp.start_date
+                AND TRIM(COALESCE(r2.position_name, '')) != TRIM(COALESCE(emp.position_name, ''))
+          )
+    ) AS position_start_date,
+
+    e.tenure_base_date,
+    e.hire_date,
+    e.pre_work_years,
+
     emp.contract_expire_date, emp.contract_summary_type,
     emp.social_insurance_relation, emp.non_compete_signed, emp.non_compete_period,
 
     edu.degree_level AS education, edu.degree_type AS degree, edu.degree_status,
     edu.school_name AS school, edu.school_type, edu.is_985_211, edu.major,
-    edu.minor_major, edu.research_direction AS researchDir,
-    edu.start_date AS edu_start_date,
-    edu.graduation_date AS gradTime,
-    edu.study_duration AS edu_study_duration,
+    edu.minor_major, edu.research_direction AS researchDir, edu.start_date AS edu_start_date,
+    edu.graduation_date AS gradTime, edu.study_duration AS edu_study_duration,
     edu.diploma_no, edu.degree_cert_no,
 
-    COALESCE(ah.province,'') || COALESCE(ah.city,'') || COALESCE(ah.district,'') AS domicile,
-    ah.address_detail_extra AS domicile_detail,
-    ah.hukou_type AS domicile_type_hukou,
-    ah.postal_code AS domicileZip,
-
-    COALESCE(an.province,'') || COALESCE(an.city,'') ||
-    COALESCE(an.district,'') || COALESCE(an.address_detail,'') AS currentAddr,
-    an.postal_code AS currentZip
-
+    COALESCE(e.domicile_province,'') || COALESCE(e.domicile_city,'') || COALESCE(e.domicile_district,'') AS domicile,
+    COALESCE(e.domicile_address_detail,'') || COALESCE(e.domicile_address_detail_extra,'') AS domicile_detail,
+    e.domicile_hukou_type AS domicile_type_hukou, e.domicile_postal_code AS domicileZip,
+    COALESCE(e.current_province,'') || COALESCE(e.current_city,'') ||
+    COALESCE(e.current_district,'') || COALESCE(e.current_address_detail,'') AS currentAddr,
+    e.current_postal_code AS currentZip
 FROM employee e
-LEFT JOIN education_record edu
-       ON e.id_card_no = edu.id_card_no AND edu.is_highest = 1
-LEFT JOIN employment_record emp
-       ON emp.id = (
-           SELECT id FROM employment_record
-           WHERE id_card_no = e.id_card_no
-             AND end_date IS NULL
-           ORDER BY start_date DESC
-           LIMIT 1
-       )
-LEFT JOIN address_record ah
-       ON e.id_card_no = ah.id_card_no AND ah.address_type = '户籍地' AND ah.is_current = 1
-LEFT JOIN address_record an
-       ON e.id_card_no = an.id_card_no AND an.address_type = '现住址' AND an.is_current = 1;
+LEFT JOIN education_record edu ON e.id_card_no = edu.id_card_no AND edu.is_highest = 1
+
+-- 获取当前生效的任职记录（用于公司、部门、岗位名称等）
+LEFT JOIN employment_record emp ON emp.id = (
+    SELECT id FROM employment_record
+    WHERE id_card_no = e.id_card_no AND (end_date IS NULL OR TRIM(end_date) = '')
+    ORDER BY start_date DESC LIMIT 1
+)
+
+-- ★ 核心修改：关联薪酬调整记录表，取时间（period）最近的一条
+LEFT JOIN salary_change_record scr ON scr.rowid = (
+    SELECT rowid FROM salary_change_record
+    WHERE id_card_no = e.id_card_no
+    ORDER BY period DESC
+    LIMIT 1
+);
 
 -- ============================================================
 -- 5. 表单配置数据（与原版完全一致）
@@ -369,9 +388,7 @@ INSERT INTO form_template (id, template_name, total_columns) VALUES (1, '员工�
 INSERT INTO form_group (id, template_id, group_key, group_label, sort_order) VALUES
   (1, 1, 'basic',     '基本信息', 10),
   (2, 1, 'job',       '任职信息', 20),
-  (3, 1, 'education', '学历信息', 30),
-  (4, 1, 'id_card',   '证件信息', 40),
-  (5, 1, 'address',   '地址信息', 50);
+  (3, 1, 'education', '最高学历信息', 30);
 
 INSERT INTO form_field (group_id, field_key, field_label, lc, vc, min_r, is_photo, sort_order) VALUES
 (1,'photo','照片',0,4,6,1,10),(1,'name','姓名',2,4,1,0,20),(1,'alias','曾用名',2,4,1,0,30),
@@ -380,7 +397,9 @@ INSERT INTO form_field (group_id, field_key, field_label, lc, vc, min_r, is_phot
 (1,'marital','婚姻状况',2,4,1,0,100),(1,'domicile_type','户籍属性',2,4,1,0,110),(1,'blood_type','血型',2,4,1,0,120),
 (1,'height_weight','身高/体重',2,4,1,0,130),(1,'mobile','联系方式',2,4,1,0,140),(1,'email','个人邮箱',2,5,1,0,150),
 (1,'email_work','工作邮箱',2,5,1,0,160),(1,'emergency','紧急联系人',2,4,1,0,170),(1,'emergency_relation','与本人关系',2,4,1,0,180),
-(1,'emergencyTel','紧急电话',2,4,1,0,190);
+(1,'emergencyTel','紧急电话',2,4,1,0,190),(1,'idNumber','公民身份号码',3,9,1,0,200),(1,'id_card_authority','发证机关',3,9,1,0,210),
+(1,'id_card_issue_date','发证日期',3,9,1,0,220),(1,'id_card_expire_date','证件到期日',3,9,1,0,230),(1,'domicile','户籍地',3,9,1,0,240),
+(1,'domicile_detail','户口所在地详情',3,9,1,0,250),(1,'currentAddr','现住址',3,9,1,0,260),(1,'currentZip','现住址邮编',3,9,1,0,270);
 
 INSERT INTO form_field (group_id, field_key, field_label, lc, vc, min_r, is_photo, sort_order) VALUES
 (2,'current_company','用工公司',3,9,1,0,10),(2,'labor_relation_company','劳动关系隶属',3,9,1,0,20),
@@ -388,8 +407,9 @@ INSERT INTO form_field (group_id, field_key, field_label, lc, vc, min_r, is_phot
 (2,'dept_level3','三级部门',2,4,1,0,50),(2,'group_name','组别',2,4,1,0,60),
 (2,'position','岗位名称',2,4,1,0,70),(2,'job_level','职级',2,4,1,0,80),
 (2,'job_class','职类',2,4,1,0,90),(2,'job_level_class','职级职类',2,4,1,0,100),
-(2,'record_type','人员类型',2,4,1,0,110),(2,'hire_date','入职时间',2,4,1,0,120),
-(2,'position_start_date','当前岗位开始时间',3,9,1,0,125),(2,'tenure_base_date','司龄基准日',2,4,1,0,130),(2,'contract_expire_date','合同到期日',2,4,1,0,140),
+(2,'record_type','人员类型',2,4,1,0,110),
+(2,'position_start_date','当前岗位开始时间',3,3,1,0,120),(2, 'tenure_base_date', '司龄基准日', 2, 4, 1, 0, 125),
+(2, 'hire_date', '入职时间', 2, 4, 1, 0, 130),(2,'contract_expire_date','合同到期日',2,4,1,0,140),
 (2,'contract_summary_type','合同类型',2,4,1,0,150),(2,'social_insurance_relation','社保关系',2,4,1,0,160),
 (2,'non_compete_signed','是否签署《竞业限制协议》',6,6,1,0,170),(2,'non_compete_period','竞业限制期限',3,9,1,0,180);
 
@@ -401,14 +421,6 @@ INSERT INTO form_field (group_id, field_key, field_label, lc, vc, min_r, is_phot
 (3,'researchDir','研究方向',3,9,1,0,90),(3,'edu_start_date','入学时间',3,9,1,0,100),
 (3,'gradTime','毕业时间',2,4,1,0,110),(3,'edu_study_duration','学制（年）',2,4,1,0,120),
 (3,'diploma_no','毕业证书编号',3,9,1,0,130),(3,'degree_cert_no','学位证书编号',3,9,1,0,140);
-
-INSERT INTO form_field (group_id, field_key, field_label, lc, vc, min_r, is_photo, sort_order) VALUES
-(4,'idNumber','身份证号',3,9,1,0,10),(4,'id_card_authority','发证机关',3,9,1,0,20),
-(4,'id_card_issue_date','发证日期',3,9,1,0,30),(4,'id_card_expire_date','证件到期日',3,9,1,0,40);
-
-INSERT INTO form_field (group_id, field_key, field_label, lc, vc, min_r, is_photo, sort_order) VALUES
-(5,'domicile','户籍地',3,9,1,0,10),(5,'domicile_detail','户口所在地详情',3,9,1,0,20),
-(5,'currentAddr','现住址',3,9,1,0,30),(5,'currentZip','现住址邮编',3,9,1,0,40);
 
 INSERT INTO form_appendix (id, template_id, appendix_key, title, sort_order) VALUES
   (1,1,'education',    '教育经历',       10),
@@ -474,13 +486,17 @@ INSERT INTO employee (
     marital_status, native_place, birthplace, former_name, height, weight, blood_type,
     id_card_authority, id_card_issue_date, id_card_expire_date, current_status,
     phone, email_personal, email_work,
-    emergency_contact_name, emergency_contact_relation, emergency_contact_phone, photo_path
+    emergency_contact_name, emergency_contact_relation, emergency_contact_phone, photo_path,
+    domicile_province, domicile_city, domicile_district, domicile_address_detail, domicile_address_detail_extra, domicile_postal_code, domicile_hukou_type,
+    current_province, current_city, current_district, current_address_detail, current_address_detail_extra, current_postal_code,tenure_base_date, pre_work_years
 ) VALUES (
     '530102198805151234','张伟','男','1988-05','汉族','中共党员','城镇',
     '已婚','云南省昆明市','云南省昆明市','张小伟',175.5,70.2,'A',
     '昆明市公安局五华分局','2010-06-01','2030-06-01','在职',
     '13888888888','zhangwei@gmail.com','zhangwei@dingcheng.com',
-    '王秀英','母子','13777777777','/uploads/avatars/zhangwei.png'
+    '王秀英','母子','13777777777','/uploads/avatars/zhangwei.png',
+    '云南省', '昆明市', '五华区', '护国路', '某街道某社区12号', '650031', '城镇',
+    '云南省', '昆明市', '官渡区', '星耀路某公寓A栋602室', '近地铁站', '650200','2012-03-01', 1.5
 );
 
 INSERT INTO employment_record (
@@ -488,7 +504,7 @@ INSERT INTO employment_record (
     dept_level1, dept_level2, dept_level3, group_name,
     position_name, job_level, job_class, job_level_class,
     salary_amount, change_reason,
-    start_date, end_date, tenure_base_date, pre_work_years, end_reason,
+    start_date, end_date, end_reason,
     transfer_from_record_id, contract_summary_type, contract_expire_date,
     social_insurance_relation, non_compete_signed, non_compete_period
 ) VALUES
@@ -497,7 +513,7 @@ INSERT INTO employment_record (
     '技术部','基础平台组','外包支持组','派遣一组',
     'Java开发工程师','5','T2','1-T1',
     6000.00,'首次入职',
-    '2012-03-01','2014-06-30','2012-03-01',1.5,'转正调岗',
+    '2012-03-01','2014-06-30','转正调岗',
     NULL,'劳务协议','2014-06-30','关联公司A','否','无'
 ),
 (
@@ -505,7 +521,7 @@ INSERT INTO employment_record (
     '技术部','研发中心','后端组','核心开发组',
     '高级Java工程师','4','T3','1-T3',
     15000.00,'跨公司转入',
-    '2014-07-01','2020-12-31','2012-03-01',1.5,'内部晋升',
+    '2014-07-01','2020-12-31','内部晋升',
     (SELECT id FROM employment_record WHERE id_card_no='530102198805151234' AND start_date='2012-03-01'),
     '固定期限','2020-12-31','昆明鼎承科技','是','1年'
 ),
@@ -514,7 +530,7 @@ INSERT INTO employment_record (
     '技术部','研发中心','后端组','架构小组',
     '高级架构师','3','T4','2-T5',
     35000.00,'内部晋升',
-    '2021-01-01',NULL,'2012-03-01',1.5,NULL,
+    '2021-01-01',NULL,NULL,
     (SELECT id FROM employment_record WHERE id_card_no='530102198805151234' AND start_date='2014-07-01'),
     '无固定期限','2099-12-31','昆明鼎承科技','是','2年'
 );
