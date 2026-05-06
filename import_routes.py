@@ -19,7 +19,6 @@ ADMIN_CONFIG = os.environ.get('ADMIN_CONFIG', 'admin_config.ini')
 
 
 def _get_admin_password() -> str:
-    """每次读取配置文件，支持不重启热更新密码"""
     cfg = configparser.ConfigParser()
     cfg.read(ADMIN_CONFIG, encoding='utf-8')
     return cfg.get('admin', 'password', fallback='')
@@ -61,9 +60,10 @@ SHEET_CONFIG = {
         'unique_keys': ['id_card_no', 'cert_name', 'cert_category'],
         'ignore_cols': ['real_name'],
     },
-    '培训记录': {
+    # Sheet名：培训经历（原培训记录），唯一键改用新字段名 training_project_name
+    '培训经历': {
         'table': 'training_record',
-        'unique_keys': ['id_card_no', 'training_name', 'start_date'],
+        'unique_keys': ['id_card_no', 'training_project_name', 'start_date'],
         'ignore_cols': ['real_name'],
     },
     '奖惩记录': {
@@ -71,7 +71,8 @@ SHEET_CONFIG = {
         'unique_keys': ['id_card_no', 'record_date', 'record_type', 'reason'],
         'ignore_cols': ['real_name'],
     },
-    '入职前工作经历': {
+    # Sheet名：入职公司前工作经历（原入职前工作经历）
+    '入职公司前工作经历': {
         'table': 'work_experience',
         'unique_keys': ['id_card_no', 'company_name', 'start_date'],
         'ignore_cols': ['real_name'],
@@ -90,13 +91,13 @@ SHEET_CONFIG = {
 
 IMPORT_ORDER = [
     '员工主表', '任职记录', '教育经历', '合同记录',
-    '家庭成员', '职称职业资格', '培训记录', '奖惩记录', '入职前工作经历',
+    '家庭成员', '职称职业资格', '培训经历', '奖惩记录', '入职公司前工作经历',
     '薪酬调整记录', '飞书账号映射',
 ]
 
 CLEAR_ORDER = [
-    '飞书账号映射', '薪酬调整记录', '入职前工作经历', '奖惩记录',
-    '培训记录', '职称职业资格', '家庭成员', '合同记录',
+    '飞书账号映射', '薪酬调整记录', '入职公司前工作经历', '奖惩记录',
+    '培训经历', '职称职业资格', '家庭成员', '合同记录',
     '教育经历', '任职记录', '员工主表',
 ]
 
@@ -130,7 +131,7 @@ def import_sheet(conn, ws, sheet_name, cfg):
     name_is_member = cfg.get('name_is_member', False)
     resolve_emp = cfg.get('resolve_emp_record', False)
 
-    seen_keys = set()  # 记录本次 Excel 内已处理过的唯一键组合，用于检测行内重复
+    seen_keys = set()
 
     for row_idx, row in enumerate(data_rows, start=4):
         raw = {}
@@ -143,7 +144,6 @@ def import_sheet(conn, ws, sheet_name, cfg):
                 val = None
             raw[key] = val
 
-        # 整行为空则跳过，不计错误
         if all(v is None for v in raw.values()):
             stats['skipped'] += 1
             continue
@@ -174,14 +174,12 @@ def import_sheet(conn, ws, sheet_name, cfg):
                 ).fetchone()
                 record['employment_record_id'] = emp_row[0] if emp_row else None
 
-            # ── Excel 内部重复行检测 ──────────────────────────────
             uk_vals = tuple(str(record.get(k, '') or '') for k in unique_keys)
             if uk_vals in seen_keys:
                 raise ValueError(
                     f"Excel内重复行：{dict(zip(unique_keys, uk_vals))}"
                 )
             seen_keys.add(uk_vals)
-            # ──────────────────────────────────────────────────────
 
             cols = ', '.join(record.keys())
             placeholders = ', '.join('?' for _ in record)

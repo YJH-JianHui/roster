@@ -16,21 +16,20 @@ from openpyxl.styles import (
 from openpyxl.utils import get_column_letter
 
 # ── 颜色常量（复刻模板） ─────────────────────────
-C_TITLE_BG   = "1F4E79"   # 深蓝，Sheet标题行背景
-C_TITLE_FG   = "FFFFFF"   # 白字
-C_DESC_BG    = "E2EFDA"   # 浅绿，说明行背景
-C_DESC_FG    = "7F7F7F"   # 灰字
-C_HDR_BG     = "D6E4F0"   # 浅蓝，普通列头
-C_HDR_KEY_BG = "FFC000"   # 橙色，唯一键列头（公民身份号码）
-C_HDR_FG     = "1F4E79"   # 深蓝字
-C_DATA_EVEN  = "FFFFFF"   # 数据行白
-C_DATA_ODD   = "F5F9FF"   # 数据行浅蓝间隔
+C_TITLE_BG   = "1F4E79"
+C_TITLE_FG   = "FFFFFF"
+C_DESC_BG    = "E2EFDA"
+C_DESC_FG    = "7F7F7F"
+C_HDR_BG     = "D6E4F0"
+C_HDR_KEY_BG = "FFC000"
+C_HDR_FG     = "1F4E79"
+C_DATA_EVEN  = "FFFFFF"
+C_DATA_ODD   = "F5F9FF"
 THIN = Side(style='thin', color="BBBBBB")
 THIN_BORDER = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
 
 # ── Sheet 与数据库表的映射关系 ──────────────────
-# (sheet_name, table, select_sql, 列头列表)
-# 列头格式：'中文_field_key'
+# (sheet_name, table, select_sql, 列头列表, 说明)
 SHEET_EXPORT_CONFIG = [
     (
         '员工主表', 'employee',
@@ -58,7 +57,7 @@ SHEET_EXPORT_CONFIG = [
          '户籍邮编_domicile_postal_code', '户口类型_domicile_hukou_type',
          '现住省_current_province', '现住市_current_city', '现住区/县_current_district',
          '现住详细地址_current_address_detail', '现住补充地址_current_address_detail_extra',
-         '入职时间_hire_date', '司龄基准日_tenure_base_date', '工前年限_pre_work_years',
+         '当前公司入职日_hire_date', '连续司龄起算日_tenure_base_date', '工前年限_pre_work_years',
          '照片路径_photo_path'],
         '【说明】所有基础信息（含证件、地址）都在此表维护。每名员工一行；公民身份号码为唯一标识。',
     ),
@@ -69,7 +68,8 @@ SHEET_EXPORT_CONFIG = [
         "r.group_name,r.position_name,r.job_level,r.job_class,r.job_level_class,"
         "r.salary_amount,r.change_reason,"
         "r.end_reason,r.contract_expire_date,"
-        "r.non_compete_signed "
+        "r.non_compete_signed,"
+        "r.change_scope,r.change_category,r.salary_change_attr "
         "FROM employment_record r LEFT JOIN employee e ON r.id_card_no=e.id_card_no "
         "ORDER BY r.id_card_no,r.start_date",
         ['姓名[冗余]_real_name','公民身份号码_id_card_no',
@@ -82,9 +82,10 @@ SHEET_EXPORT_CONFIG = [
          '职级职类_job_level_class','薪酬金额_salary_amount','变动原因_change_reason',
          '结束原因_end_reason',
          '合同到期日_contract_expire_date',
-         '竞业限制签署_non_compete_signed'],
+         '竞业限制签署_non_compete_signed',
+         '变动范围_change_scope','变动类型_change_category','岗薪酬变动属性_salary_change_attr'],
         '【说明】唯一键=公民身份号码+本段开始日期；每次调岗/晋升/入职新增一行，同一人start_date不可重复。'
-        '★ tenure_base_date(入职时间/司龄基准日)=首次入职日，同一人所有行填同一值，不随调岗变化。'
+        '★ tenure_base_date(连续司龄起算日)=首次入职日，同一人所有行填同一值，不随调岗变化。'
         '★ 在职员工最新一行end_date留空；历史行end_date必须填写。姓名列仅供查阅，导入时忽略。',
     ),
     (
@@ -138,15 +139,20 @@ SHEET_EXPORT_CONFIG = [
         '【说明】唯一键=公民身份号码+资质名称+资质类别。',
     ),
     (
-        '培训记录', 'training_record',
-        "SELECT e.real_name,r.id_card_no,r.training_name,r.start_date,r.end_date,"
-        "r.training_type,r.training_org,r.result,r.cert_obtained "
+        # Sheet名：培训经历，字段名全部更新
+        '培训经历', 'training_record',
+        "SELECT e.real_name,r.id_card_no,r.training_project_name,r.start_date,r.end_date,"
+        "r.training_type,r.training_org,r.training_hours,r.result,r.cert_obtained_flag,"
+        "r.service_agreement,r.service_period "
         "FROM training_record r LEFT JOIN employee e ON r.id_card_no=e.id_card_no "
         "ORDER BY r.id_card_no,r.start_date",
-        ['姓名[冗余]_real_name','公民身份号码_id_card_no','项目名称_training_name',
+        ['姓名[冗余]_real_name','公民身份号码_id_card_no',
+         '培训项目名称_training_project_name',
          '开始时间_start_date','结束时间_end_date','培训类型_training_type',
-         '培训机构_training_org','考核结果_result','获得证书_cert_obtained'],
-        '【说明】唯一键=公民身份号码+项目名称+开始时间。',
+         '培训机构_training_org','培训学时_training_hours','考核结果_result',
+         '是否获证_cert_obtained_flag',
+         '是否签订服务期限协议_service_agreement','服务起止时间_service_period'],
+        '【说明】唯一键=公民身份号码+培训项目名称+开始时间。',
     ),
     (
         '奖惩记录', 'reward_punishment_record',
@@ -159,16 +165,15 @@ SHEET_EXPORT_CONFIG = [
         '【说明】唯一键=公民身份号码+类型+日期+原因。',
     ),
     (
-        '入职前工作经历', 'work_experience',
+        # Sheet名：入职公司前工作经历，删除离职原因/证明人/证明电话，新增薪资
+        '入职公司前工作经历', 'work_experience',
         "SELECT e.real_name,r.id_card_no,r.company_name,r.start_date,r.end_date,"
-        "r.industry,r.company_type,r.position,r.leave_reason,r.reference_person,"
-        "r.reference_phone "
+        "r.industry,r.company_type,r.position,r.salary "
         "FROM work_experience r LEFT JOIN employee e ON r.id_card_no=e.id_card_no "
         "ORDER BY r.id_card_no,r.start_date",
         ['姓名[冗余]_real_name','公民身份号码_id_card_no','工作单位_company_name',
          '开始时间_start_date','结束时间_end_date','行业_industry',
-         '单位属性_company_type','职务_position','离职原因_leave_reason',
-         '证明人_reference_person','证明电话_reference_phone'],
+         '单位属性_company_type','职务_position','薪资_salary'],
         '【说明】唯一键=公民身份号码+工作单位+开始时间。',
     ),
     (
@@ -194,7 +199,6 @@ SHEET_EXPORT_CONFIG = [
 
 
 def _apply_title_row(ws, title, ncols):
-    """第1行：Sheet标题（合并、深蓝底白字）"""
     ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=ncols)
     c = ws.cell(1, 1, title)
     c.font      = Font(bold=True, color=C_TITLE_FG, size=11)
@@ -204,7 +208,6 @@ def _apply_title_row(ws, title, ncols):
 
 
 def _apply_desc_row(ws, desc, ncols):
-    """第2行：说明行（合并、浅绿底灰字）"""
     ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=ncols)
     c = ws.cell(2, 1, desc)
     c.font      = Font(color=C_DESC_FG, size=9)
@@ -214,7 +217,6 @@ def _apply_desc_row(ws, desc, ncols):
 
 
 def _apply_header_row(ws, headers):
-    """第3行：列头（深蓝字，普通列浅蓝底，id_card_no列橙色底）"""
     for col, hdr in enumerate(headers, 1):
         c = ws.cell(3, col, hdr)
         is_key = 'id_card_no' in hdr
@@ -226,7 +228,6 @@ def _apply_header_row(ws, headers):
 
 
 def _write_data_rows(ws, rows, ncols, start_row=4):
-    """数据行：全部写成文本，奇偶行间隔色"""
     TEXT_FMT = "@"
     for ri, row in enumerate(rows):
         excel_row = start_row + ri
@@ -243,10 +244,8 @@ def _write_data_rows(ws, rows, ncols, start_row=4):
 
 
 def _auto_col_width(ws, headers, start_row=4, max_width=40, min_width=8):
-    """自动列宽（取列头和数据最长值）"""
     for col_idx, hdr in enumerate(headers, 1):
         col_letter = get_column_letter(col_idx)
-        # 列头中文宽度估算（中文字符按2算）
         hdr_w = sum(2 if ord(c) > 127 else 1 for c in hdr.split('_')[0]) + 2
         max_w = max(hdr_w, min_width)
         for row in ws.iter_rows(min_row=start_row, min_col=col_idx, max_col=col_idx):
@@ -262,14 +261,10 @@ def _auto_col_width(ws, headers, start_row=4, max_width=40, min_width=8):
 # ══════════════════════════════════════════════════════════════
 
 def export_db_to_excel(db_file: str) -> bytes:
-    """
-    从数据库读取所有表数据，按模板格式生成Excel，返回bytes。
-    所有数据单元格格式为文本。
-    """
     conn = sqlite3.connect(db_file)
     conn.row_factory = sqlite3.Row
     wb = Workbook()
-    wb.remove(wb.active)   # 删除默认空Sheet
+    wb.remove(wb.active)
 
     for sheet_name, table, sql, headers, desc in SHEET_EXPORT_CONFIG:
         try:
@@ -296,36 +291,33 @@ def export_db_to_excel(db_file: str) -> bytes:
 #  功能2：生成导入明细报告
 # ══════════════════════════════════════════════════════════════
 
-# 各表的必填字段（用于缺失字段检测）
 REQUIRED_FIELDS = {
-    '员工主表':     ['real_name', 'id_card_no'],
-    '任职记录':     ['id_card_no', 'start_date', 'record_type'],
-    '教育经历':     ['id_card_no', 'school_name', 'start_date'],
-    '合同记录':     ['id_card_no', 'seq', 'start_date', 'contract_type'],
-    '家庭成员':     ['id_card_no', 'relation', 'real_name'],
-    '职称职业资格': ['id_card_no', 'cert_name', 'cert_category'],
-    '培训记录':     ['id_card_no', 'training_name', 'start_date'],
-    '奖惩记录':     ['id_card_no', 'record_date', 'record_type', 'reason'],
-    '入职前工作经历':['id_card_no', 'company_name', 'start_date'],
-    '薪酬调整记录': ['id_card_no', 'period'],
-    '飞书账号映射': ['id_card_no', 'feishu_user_id'],
+    '员工主表':         ['real_name', 'id_card_no'],
+    '任职记录':         ['id_card_no', 'start_date', 'record_type'],
+    '教育经历':         ['id_card_no', 'school_name', 'start_date'],
+    '合同记录':         ['id_card_no', 'seq', 'start_date', 'contract_type'],
+    '家庭成员':         ['id_card_no', 'relation', 'real_name'],
+    '职称职业资格':     ['id_card_no', 'cert_name', 'cert_category'],
+    '培训经历':         ['id_card_no', 'training_project_name', 'start_date'],   # 原 training_name
+    '奖惩记录':         ['id_card_no', 'record_date', 'record_type', 'reason'],
+    '入职公司前工作经历':['id_card_no', 'company_name', 'start_date'],
+    '薪酬调整记录':     ['id_card_no', 'period'],
+    '飞书账号映射':     ['id_card_no', 'feishu_user_id'],
 }
 
-# 非主表：导入后在数据库中，主表有但子表没有记录的员工提示
 SUB_TABLE_QUERY = {
-    '任职记录':     "SELECT id_card_no FROM employment_record",
-    '教育经历':     "SELECT id_card_no FROM education_record",
-    '合同记录':     "SELECT id_card_no FROM contract_record",
-    '家庭成员':     "SELECT id_card_no FROM family_member",
-    '职称职业资格': "SELECT id_card_no FROM certificate_record",
-    '培训记录':     "SELECT id_card_no FROM training_record",
-    '奖惩记录':     "SELECT id_card_no FROM reward_punishment_record",
-    '入职前工作经历':"SELECT id_card_no FROM work_experience",
-    '薪酬调整记录': "SELECT id_card_no FROM salary_change_record",
-    '飞书账号映射': "SELECT id_card_no FROM feishu_user_map",
+    '任职记录':         "SELECT id_card_no FROM employment_record",
+    '教育经历':         "SELECT id_card_no FROM education_record",
+    '合同记录':         "SELECT id_card_no FROM contract_record",
+    '家庭成员':         "SELECT id_card_no FROM family_member",
+    '职称职业资格':     "SELECT id_card_no FROM certificate_record",
+    '培训经历':         "SELECT id_card_no FROM training_record",
+    '奖惩记录':         "SELECT id_card_no FROM reward_punishment_record",
+    '入职公司前工作经历':"SELECT id_card_no FROM work_experience",
+    '薪酬调整记录':     "SELECT id_card_no FROM salary_change_record",
+    '飞书账号映射':     "SELECT id_card_no FROM feishu_user_map",
 }
 
-# 报告颜色
 RC_SUCCESS_BG = "E2EFDA"
 RC_WARN_BG    = "FFF2CC"
 RC_ERROR_BG   = "FFE0E0"
@@ -336,7 +328,6 @@ RC_SUB_BG     = "E8F0FE"
 
 
 def _report_header(ws, labels, col_widths=None):
-    """写报告列头"""
     for ci, lbl in enumerate(labels, 1):
         c = ws.cell(1, ci, lbl)
         c.font      = Font(bold=True, color=RC_HEADER_FG, size=10)
@@ -361,22 +352,14 @@ def _report_cell(ws, row, col, value, bg=None, bold=False, wrap=False):
 
 
 def build_import_report(results: dict, db_file: str, import_excel=None) -> bytes:
-    """
-    生成导入明细报告Excel。
-    results: {sheet_name: {inserted, skipped, errors:[{row,msg}], row_details:[...]}}
-    db_file: 数据库路径（用于查主表覆盖情况）
-    import_excel: 原始导入的workbook（用于分析缺失字段），可为None
-    """
     wb = Workbook()
     wb.remove(wb.active)
 
-    # ── Sheet1：汇总 ──────────────────────────────
     ws_sum = wb.create_sheet("导入汇总")
     _report_header(ws_sum,
         ["Sheet名称", "写入行数", "跳过空行", "错误行数", "主表未覆盖员工数", "状态"],
         [20, 12, 12, 12, 20, 10])
 
-    # 查主表所有公民身份号码
     conn = sqlite3.connect(db_file)
     all_ids = {r[0] for r in conn.execute("SELECT id_card_no FROM employee").fetchall()}
 
@@ -386,7 +369,6 @@ def build_import_report(results: dict, db_file: str, import_excel=None) -> bytes
         skipped     = stat.get('skipped', 0)
         err_count   = len(stat.get('errors', []))
 
-        # 主表未覆盖（子表中有记录的id_card_no集合，未在主表中出现的）
         uncovered = 0
         if sheet_name in SUB_TABLE_QUERY and sheet_name != '员工主表':
             try:
@@ -408,15 +390,13 @@ def build_import_report(results: dict, db_file: str, import_excel=None) -> bytes
 
     conn.close()
 
-    # ── 各Sheet明细 ──────────────────────────────
     for sheet_name, stat in results.items():
         errors   = stat.get('errors', [])
         inserted = stat.get('inserted', 0)
         skipped  = stat.get('skipped', 0)
 
-        ws = wb.create_sheet(sheet_name[:28])   # Sheet名最多31字符
+        ws = wb.create_sheet(sheet_name[:28])
 
-        # 小标题
         ws.merge_cells("A1:F1")
         c = ws.cell(1, 1, f"{sheet_name}  —  写入:{inserted}  跳过空行:{skipped}  错误:{len(errors)}")
         c.font      = Font(bold=True, size=11, color=RC_HEADER_FG)
@@ -426,7 +406,6 @@ def build_import_report(results: dict, db_file: str, import_excel=None) -> bytes
 
         cur_row = 2
 
-        # ── 错误行明细 ──
         if errors:
             _report_header_inline(ws, cur_row,
                 ["类型", "Excel行号", "错误原因"], [8, 12, 60])
@@ -442,15 +421,11 @@ def build_import_report(results: dict, db_file: str, import_excel=None) -> bytes
             c.font = Font(color="2E7D32", bold=True, size=10)
             cur_row += 1
 
-        cur_row += 1  # 空行分隔
+        cur_row += 1
 
-        # ── 主表缺失提示（非主表才有） ──
         if sheet_name != '员工主表' and sheet_name in SUB_TABLE_QUERY:
             conn2 = sqlite3.connect(db_file)
             try:
-                all_ids2 = {r[0] for r in conn2.execute(
-                    "SELECT e.id_card_no, e.real_name FROM employee e").fetchall()}
-                # 重查包含姓名
                 emp_rows = conn2.execute(
                     "SELECT id_card_no, real_name FROM employee ORDER BY id_card_no"
                 ).fetchall()
@@ -478,7 +453,6 @@ def build_import_report(results: dict, db_file: str, import_excel=None) -> bytes
                 c.font = Font(color="2E7D32", bold=True, size=10)
                 cur_row += 1
 
-        # ── 缺失字段分析（从导入Excel中读取） ──
         if import_excel and sheet_name in REQUIRED_FIELDS:
             missing_field_rows = _analyze_missing_fields(
                 import_excel, sheet_name, REQUIRED_FIELDS[sheet_name]
@@ -505,7 +479,6 @@ def build_import_report(results: dict, db_file: str, import_excel=None) -> bytes
 
 
 def _report_header_inline(ws, row, labels, col_widths=None):
-    """在指定行写子标题（非第1行）"""
     for ci, lbl in enumerate(labels, 1):
         c = ws.cell(row, ci, lbl)
         c.font      = Font(bold=True, color=RC_HEADER_FG, size=10)
@@ -521,7 +494,6 @@ def _report_header_inline(ws, row, labels, col_widths=None):
 
 
 def _analyze_missing_fields(wb_import, sheet_name, required_keys):
-    """分析导入Excel中某Sheet的缺失必填字段，返回列表"""
     if sheet_name not in wb_import.sheetnames:
         return []
     ws = wb_import[sheet_name]
@@ -529,7 +501,6 @@ def _analyze_missing_fields(wb_import, sheet_name, required_keys):
     if len(rows) < 2:
         return []
 
-    # 解析列头
     field_keys = []
     for cell in rows[0]:
         val = str(cell.value).strip() if cell.value else ''
@@ -546,7 +517,7 @@ def _analyze_missing_fields(wb_import, sheet_name, required_keys):
                 raw[field_keys[ci]] = val
 
         if all(v is None for v in raw.values()):
-            continue  # 空行跳过
+            continue
 
         missing = [k for k in required_keys if not raw.get(k)]
         if missing:

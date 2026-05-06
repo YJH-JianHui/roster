@@ -109,9 +109,10 @@ def get_employee_data(feishu_user_id):
         FROM education_record WHERE id_card_no = ? ORDER BY start_date
     """, (id_card_no,)).fetchall()]
 
+    # 入职公司前工作经历：新字段（无 leave_reason/reference_person/reference_phone，新增 salary）
     work_exp_data = [dict(r) for r in conn.execute("""
         SELECT start_date, end_date, company_name, industry, company_type,
-               position, leave_reason, reference_person, reference_phone
+               position, salary
         FROM work_experience WHERE id_card_no = ? ORDER BY start_date
     """, (id_card_no,)).fetchall()]
 
@@ -120,6 +121,7 @@ def get_employee_data(feishu_user_id):
         FROM contract_record WHERE id_card_no = ? ORDER BY seq, start_date
     """, (id_card_no,)).fetchall()]
 
+    # 职业发展历程：新增 job_class/change_scope/change_category/salary_change_attr，删除 record_type/change_type
     career_data = [dict(r) for r in conn.execute("""
         SELECT
             start_date || ' ~ ' || COALESCE(end_date, '至今') AS period,
@@ -128,9 +130,11 @@ def get_employee_data(feishu_user_id):
                 CASE WHEN dept_level2 IS NOT NULL THEN ' > ' || dept_level2 ELSE '' END ||
                 CASE WHEN dept_level3 IS NOT NULL THEN ' > ' || dept_level3 ELSE '' END AS dept,
             position_name AS position,
+            job_class,
             job_level_class,
-            record_type,
-            COALESCE(change_reason, COALESCE(end_reason, '')) AS change_type
+            COALESCE(change_scope, '') AS change_scope,
+            COALESCE(change_category, '') AS change_category,
+            COALESCE(salary_change_attr, '') AS salary_change_attr
         FROM employment_record WHERE id_card_no = ? ORDER BY start_date
     """, (id_card_no,)).fetchall()]
 
@@ -145,9 +149,11 @@ def get_employee_data(feishu_user_id):
             FROM certificate_record WHERE id_card_no = ? ORDER BY cert_category, issue_date DESC
         """, (id_card_no,)).fetchall()]
 
+    # 培训经历：使用新字段名
     training_data = [dict(r) for r in conn.execute("""
-        SELECT start_date, end_date, training_name, training_type,
-               training_org, result, cert_obtained
+        SELECT start_date, end_date, training_project_name, training_type,
+               training_org, training_hours, result, cert_obtained_flag,
+               service_agreement, service_period
         FROM training_record WHERE id_card_no = ? ORDER BY start_date
     """, (id_card_no,)).fetchall()]
 

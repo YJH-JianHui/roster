@@ -92,6 +92,10 @@ CREATE TABLE "employment_record" (
   "transfer_from_record_id"  INTEGER,
   "contract_expire_date"     TEXT,
   "non_compete_signed"       TEXT DEFAULT '否',
+  -- 职业发展历程新增字段
+  "change_scope"             TEXT,   -- 变动范围（跨公司/跨部门/部门内）
+  "change_category"          TEXT,   -- 变动类型（晋升/调岗/降级/入职/离职等）
+  "salary_change_attr"       TEXT,   -- 岗/薪酬变动属性（调薪/不调薪/随岗调薪等）
   FOREIGN KEY ("id_card_no") REFERENCES "employee" ("id_card_no") ON DELETE CASCADE,
   FOREIGN KEY ("transfer_from_record_id") REFERENCES "employment_record" ("id") ON DELETE SET NULL,
   UNIQUE ("id_card_no", "start_date")
@@ -167,26 +171,31 @@ CREATE TABLE "certificate_record" (
   "id_card_no"               TEXT NOT NULL,
   "cert_name"                TEXT NOT NULL,
   "cert_category"            TEXT NOT NULL,
-  "issue_date"               TEXT,  -- 允许为空
+  "issue_date"               TEXT,
   "cert_major"               TEXT,
   "cert_level"               TEXT,
   "cert_no"                  TEXT,
-  "expire_date"              TEXT,  -- 允许为空
+  "expire_date"              TEXT,
   PRIMARY KEY ("id_card_no", "cert_name", "cert_category"),
   FOREIGN KEY ("id_card_no") REFERENCES "employee" ("id_card_no") ON DELETE CASCADE
 );
 
--- 培训记录：联合主键
+-- 培训经历：联合主键
+-- 字段变更：training_name → training_project_name，cert_obtained → cert_obtained_flag
+-- 新增：training_hours, service_agreement, service_period
 CREATE TABLE "training_record" (
   "id_card_no"               TEXT NOT NULL,
-  "training_name"            TEXT NOT NULL,
+  "training_project_name"    TEXT NOT NULL,   -- 原 training_name
   "start_date"               TEXT NOT NULL,
   "training_type"            TEXT,
   "training_org"             TEXT,
+  "training_hours"           REAL,            -- 新增：培训学时
   "end_date"                 TEXT,
   "result"                   TEXT,
-  "cert_obtained"            TEXT,
-  PRIMARY KEY ("id_card_no", "training_name", "start_date"),
+  "cert_obtained_flag"       TEXT,            -- 原 cert_obtained，改为 是/否
+  "service_agreement"        TEXT,            -- 新增：是否签订服务期限协议
+  "service_period"           TEXT,            -- 新增：服务起止时间
+  PRIMARY KEY ("id_card_no", "training_project_name", "start_date"),
   FOREIGN KEY ("id_card_no") REFERENCES "employee" ("id_card_no") ON DELETE CASCADE
 );
 
@@ -202,7 +211,8 @@ CREATE TABLE "reward_punishment_record" (
   FOREIGN KEY ("id_card_no") REFERENCES "employee" ("id_card_no") ON DELETE CASCADE
 );
 
--- 入职前工作经历：联合主键
+-- 入职公司前工作经历：联合主键
+-- 字段变更：删除 leave_reason/reference_person/reference_phone，新增 salary
 CREATE TABLE "work_experience" (
   "id_card_no"               TEXT NOT NULL,
   "company_name"             TEXT NOT NULL,
@@ -210,10 +220,8 @@ CREATE TABLE "work_experience" (
   "industry"                 TEXT,
   "company_type"             TEXT,
   "position"                 TEXT,
+  "salary"                   TEXT,            -- 新增：薪资
   "end_date"                 TEXT,
-  "leave_reason"             TEXT,
-  "reference_person"         TEXT,
-  "reference_phone"          TEXT,
   PRIMARY KEY ("id_card_no", "company_name", "start_date"),
   FOREIGN KEY ("id_card_no") REFERENCES "employee" ("id_card_no") ON DELETE CASCADE
 );
@@ -242,7 +250,7 @@ CREATE TABLE "feishu_user_map" (
 );
 
 -- ============================================================
--- 3. 表单配置表（结构不变）
+-- 3. 表单配置表
 -- ============================================================
 CREATE TABLE "form_template" (
   "id" INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -292,7 +300,7 @@ CREATE TABLE "form_appendix_col" (
 );
 
 -- ============================================================
--- 4. 视图（删除相关字段）
+-- 4. 视图
 -- ============================================================
 CREATE VIEW vw_employee_profile AS
 SELECT
@@ -304,7 +312,7 @@ SELECT
     e.emergency_contact_name AS emergency, e.emergency_contact_relation AS emergency_relation, e.emergency_contact_phone AS emergencyTel,
     e.current_status, e.id_card_no AS idNumber, e.id_card_authority, e.id_card_issue_date, e.id_card_expire_date,
 
-    -- 任职信息基础字段（保留自任职记录表）
+    -- 现任职信息基础字段
     emp.company AS current_company, emp.labor_relation_company,
     emp.dept_level1, emp.dept_level2, emp.dept_level3, emp.group_name,
     emp.position_name AS position,
@@ -352,7 +360,7 @@ SELECT
 FROM employee e
 LEFT JOIN education_record edu ON e.id_card_no = edu.id_card_no AND edu.is_highest = 1
 
--- 获取当前生效的任职记录（用于公司、部门、岗位名称等）
+-- 获取当前生效的任职记录
 LEFT JOIN employment_record emp ON emp.id = (
     SELECT id FROM employment_record
     WHERE id_card_no = e.id_card_no AND (end_date IS NULL OR TRIM(end_date) = '')
@@ -372,9 +380,10 @@ LEFT JOIN salary_change_record scr ON scr.rowid = (
 -- ============================================================
 INSERT INTO form_template (id, template_name, total_columns) VALUES (1, '员工个人信息登记表', 24);
 
+-- group_label: "任职信息" → "现任职信息"
 INSERT INTO form_group (id, template_id, group_key, group_label, sort_order) VALUES
   (1, 1, 'basic',     '基本信息', 10),
-  (2, 1, 'job',       '任职信息', 20),
+  (2, 1, 'job',       '现任职信息', 20),
   (3, 1, 'education', '最高学历信息', 30);
 
 INSERT INTO form_field (group_id, field_key, field_label, lc, vc, min_r, is_photo, sort_order) VALUES
@@ -388,6 +397,7 @@ INSERT INTO form_field (group_id, field_key, field_label, lc, vc, min_r, is_phot
 (1,'id_card_issue_date','发证日期',3,9,1,0,220),(1,'id_card_expire_date','证件到期日',3,9,1,0,230),(1,'domicile','户籍地',3,9,1,0,240),
 (1,'domicile_detail','户口所在地详情',3,9,1,0,250),(1,'currentAddr','现住址',3,9,1,0,260);
 
+-- "入职时间" → "当前公司入职日"，"司龄基准日" → "连续司龄起算日"
 INSERT INTO form_field (group_id, field_key, field_label, lc, vc, min_r, is_photo, sort_order) VALUES
 (2,'current_company','用工公司',3,9,1,0,10),(2,'labor_relation_company','劳动关系隶属',3,9,1,0,20),
 (2,'dept_level1','一级部门',2,4,1,0,30),(2,'dept_level2','二级部门',2,4,1,0,40),
@@ -395,8 +405,10 @@ INSERT INTO form_field (group_id, field_key, field_label, lc, vc, min_r, is_phot
 (2,'position','岗位名称',2,4,1,0,70),(2,'job_level','职级',2,4,1,0,80),
 (2,'job_class','职类',2,4,1,0,90),(2,'job_level_class','职级职类',2,4,1,0,100),
 (2,'record_type','人员类型',2,4,1,0,110),
-(2,'position_start_date','当前岗位开始时间',3,3,1,0,120),(2, 'tenure_base_date', '司龄基准日', 2, 4, 1, 0, 125),
-(2, 'hire_date', '入职时间', 2, 4, 1, 0, 130),(2,'contract_expire_date','合同到期日',2,4,1,0,140),
+(2,'position_start_date','当前岗位开始时间',3,3,1,0,120),
+(2,'tenure_base_date','连续司龄起算日',2,4,1,0,125),
+(2,'hire_date','当前公司入职日',2,4,1,0,130),
+(2,'contract_expire_date','合同到期日',2,4,1,0,140),
 (2,'non_compete_signed','是否签署《竞业限制协议》',6,6,1,0,170);
 
 INSERT INTO form_field (group_id, field_key, field_label, lc, vc, min_r, is_photo, sort_order) VALUES
@@ -408,16 +420,17 @@ INSERT INTO form_field (group_id, field_key, field_label, lc, vc, min_r, is_phot
 (3,'gradTime','毕业时间',2,4,1,0,110),(3,'edu_study_duration','学制（年）',2,4,1,0,120),
 (3,'diploma_no','毕业证书编号',3,9,1,0,130),(3,'degree_cert_no','学位证书编号',3,9,1,0,140);
 
+-- appendix title: "职业生涯时间线" → "职业发展历程"，"入职前工作经历" → "入职公司前工作经历"，"培训记录" → "培训经历"
 INSERT INTO form_appendix (id, template_id, appendix_key, title, sort_order) VALUES
-  (1,1,'education',    '教育经历',       10),
-  (2,1,'work_history', '入职前工作经历', 20),
-  (3,1,'contracts',    '劳动合同签订记录',30),
-  (4,1,'career',       '职业生涯时间线', 40),
-  (5,1,'salary_changes','薪酬调整记录',  50),
-  (6,1,'certificates', '职称/职业资格',  60),
-  (7,1,'training',     '培训记录',       70),
-  (8,1,'rewards',      '奖惩记录',       80),
-  (9,1,'family',       '家庭成员情况',   90);
+  (1,1,'education',    '教育经历',             10),
+  (2,1,'work_history', '入职公司前工作经历',   20),
+  (3,1,'contracts',    '劳动合同签订记录',      30),
+  (4,1,'career',       '职业发展历程',          40),
+  (5,1,'salary_changes','薪酬调整记录',         50),
+  (6,1,'certificates', '职称/职业资格',         60),
+  (7,1,'training',     '培训经历',              70),
+  (8,1,'rewards',      '奖惩记录',              80),
+  (9,1,'family',       '家庭成员情况',          90);
 
 INSERT INTO form_appendix_col (appendix_id, field_key, label, colspan, sort_order) VALUES
 (1,'start_date','入学时间',3,10),(1,'graduation_date','毕业时间',3,20),(1,'school_name','院校名称',4,30),
@@ -425,19 +438,22 @@ INSERT INTO form_appendix_col (appendix_id, field_key, label, colspan, sort_orde
 (1,'degree_status','学习方式',3,70),(1,'school_type','院校属性',2,80),
 (1,'study_duration','学制',1,90),(1,'is_highest','最高学历',1,100);
 
+-- 入职公司前工作经历：删除离职原因/证明人/证明电话，新增薪资
 INSERT INTO form_appendix_col (appendix_id, field_key, label, colspan, sort_order) VALUES
-(2,'start_date','开始时间',3,10),(2,'end_date','结束时间',3,20),(2,'company_name','工作单位',3,30),
-(2,'industry','行业',2,40),(2,'company_type','单位属性',2,50),(2,'position','职务',3,60),
-(2,'leave_reason','离职原因',3,70),(2,'reference_person','证明人',2,80),(2,'reference_phone','证明电话',3,90);
+(2,'start_date','开始时间',3,10),(2,'end_date','结束时间',3,20),(2,'company_name','工作单位',6,30),
+(2,'industry','行业',4,40),(2,'company_type','单位属性',2,50),
+(2,'position','职务',3,60),(2,'salary','薪资',3,70);
 
 INSERT INTO form_appendix_col (appendix_id, field_key, label, colspan, sort_order) VALUES
 (3,'seq','签订次数',2,10),(3,'contract_type','合同类型',4,20),(3,'start_date','起始日期',4,30),
 (3,'end_date','到期日期',4,40),(3,'remark','备注',10,50);
 
+-- 职业发展历程：增加职类/变动范围/变动类型/岗薪酬变动属性，删除人员类型/change_type
 INSERT INTO form_appendix_col (appendix_id, field_key, label, colspan, sort_order) VALUES
-(4,'period','时期',5,10),(4,'company','用工公司',4,20),(4,'dept','用工部门',4,30),
-(4,'position','岗位',3,40),(4,'job_level_class','职级职类',2,50),
-(4,'record_type','人员类型',2,60),(4,'change_type','变动类型',4,70);
+(4,'period','时期',5,10),(4,'company','用工公司',3,20),(4,'dept','用工部门',3,30),
+(4,'position','岗位',2,40),(4,'job_class','职类',2,50),(4,'job_level_class','职级职类',2,60),
+(4,'change_scope','变动范围',2,70),(4,'change_category','变动类型',2,80),
+(4,'salary_change_attr','岗/薪酬变动属性',3,90);
 
 INSERT INTO form_appendix_col (appendix_id, field_key, label, colspan, sort_order) VALUES
 (5,'period','时间',4,10),(5,'company','用工公司',4,20),(5,'dept','用工部门',4,30),
@@ -449,10 +465,14 @@ INSERT INTO form_appendix_col (appendix_id, field_key, label, colspan, sort_orde
 (6,'cert_level','资质等级',3,40),(6,'cert_no','证书编号',4,50),(6,'issue_date','取证时间',3,60),
 (6,'expire_date','到期时间',3,70);
 
+-- 培训经历：training_project_name/training_hours/cert_obtained_flag/service_agreement/service_period
 INSERT INTO form_appendix_col (appendix_id, field_key, label, colspan, sort_order) VALUES
-(7,'start_date','开始时间',3,10),(7,'end_date','结束时间',3,20),(7,'training_name','项目名称',6,30),
-(7,'training_type','培训类型',3,40),(7,'training_org','培训机构',4,50),
-(7,'result','考核结果',2,60),(7,'cert_obtained','获得证书',3,70);
+(7,'start_date','开始时间',2,10),(7,'end_date','结束时间',2,20),
+(7,'training_project_name','培训项目名称',4,30),
+(7,'training_type','培训类型',2,40),(7,'training_org','培训机构',3,50),
+(7,'training_hours','培训学时',2,60),(7,'result','考核结果',2,70),
+(7,'cert_obtained_flag','是否获证',2,80),
+(7,'service_agreement','是否签订服务期限协议',3,90),(7,'service_period','服务起止时间',4,100);
 
 INSERT INTO form_appendix_col (appendix_id, field_key, label, colspan, sort_order) VALUES
 (8,'record_date','日期',3,10),(8,'record_type','类型',3,20),(8,'category','类别',4,30),
@@ -493,8 +513,8 @@ INSERT INTO employment_record (
     position_name, job_level, job_class, job_level_class,
     salary_amount, change_reason,
     start_date, end_date, end_reason,
-    transfer_from_record_id, contract_expire_date,
-    non_compete_signed
+    transfer_from_record_id, contract_expire_date, non_compete_signed,
+    change_scope, change_category, salary_change_attr
 ) VALUES
 (
     '530102198805151234','劳务派遣','关联公司A','关联公司A',
@@ -502,7 +522,8 @@ INSERT INTO employment_record (
     'Java开发工程师','5','T2','1-T1',
     6000.00,'首次入职',
     '2012-03-01','2014-06-30','转正调岗',
-    NULL,'2014-06-30','否'
+    NULL,'2014-06-30','否',
+    '跨公司','入职','随岗调薪'
 ),
 (
     '530102198805151234','正式员工','昆明鼎承科技','昆明鼎承科技',
@@ -511,7 +532,8 @@ INSERT INTO employment_record (
     15000.00,'跨公司转入',
     '2014-07-01','2020-12-31','内部晋升',
     (SELECT id FROM employment_record WHERE id_card_no='530102198805151234' AND start_date='2012-03-01'),
-    '2020-12-31','是'
+    '2020-12-31','是',
+    '跨公司','调岗','调薪'
 ),
 (
     '530102198805151234','正式员工','昆明鼎承科技','昆明鼎承科技',
@@ -520,7 +542,8 @@ INSERT INTO employment_record (
     35000.00,'内部晋升',
     '2021-01-01',NULL,NULL,
     (SELECT id FROM employment_record WHERE id_card_no='530102198805151234' AND start_date='2014-07-01'),
-    '2099-12-31','是'
+    '2099-12-31','是',
+    '部门内','晋升','调薪'
 );
 
 INSERT INTO contract_record (id_card_no, seq, start_date, employment_record_id, contract_type, end_date, remark) VALUES
@@ -561,13 +584,15 @@ INSERT INTO reward_punishment_record (id_card_no, record_date, record_type, cate
 ('530102198805151234','2023-12-31','奖励','优秀员工','主导核心系统国产化，提前交付','人力资源部'),
 ('530102198805151234','2015-06-15','惩罚','生产事故','误删环境导致停机','技术部');
 
-INSERT INTO training_record (id_card_no, training_name, start_date, training_type, training_org, end_date, result, cert_obtained) VALUES
-('530102198805151234','Spring Cloud实战','2019-03-01','外训','极客时间','2019-03-05','优秀','结业证'),
-('530102198805151234','高并发架构营','2022-05-01','内训','公司技委会','2022-05-30','合格','无');
+-- 培训经历：使用新字段名
+INSERT INTO training_record (id_card_no, training_project_name, start_date, training_type, training_org, training_hours, end_date, result, cert_obtained_flag, service_agreement, service_period) VALUES
+('530102198805151234','Spring Cloud实战','2019-03-01','外训','极客时间',32,'2019-03-05','优秀','是','否',NULL),
+('530102198805151234','高并发架构营','2022-05-01','内训','公司技委会',48,'2022-05-30','合格','否','是','2022-06-01 ~ 2025-05-31');
 
-INSERT INTO work_experience (id_card_no, company_name, start_date, industry, company_type, position, end_date, leave_reason, reference_person, reference_phone) VALUES
-('530102198805151234','科海网络','2010-07-01','互联网IT','民营企业','初级Java','2011-02-28','公司解散','周杰伦','13000000001'),
-('530102198805151234','云软开发','2011-10-01','企业软件','合资企业','Java开发','2012-02-28','寻求更好发展','刘德华','13000000002');
+-- 入职公司前工作经历：使用新字段（无 leave_reason/reference_person/reference_phone，新增 salary）
+INSERT INTO work_experience (id_card_no, company_name, start_date, industry, company_type, position, salary, end_date) VALUES
+('530102198805151234','科海网络','2010-07-01','互联网IT','民营企业','初级Java','3500','2011-02-28'),
+('530102198805151234','云软开发','2011-10-01','企业软件','合资企业','Java开发','4800','2012-02-28');
 
 INSERT INTO salary_change_record (id_card_no, period, company, dept, position, job_level, job_class, job_level_class, remark) VALUES
 ('530102198805151234','2014-07-01','昆明鼎承科技','技术部','高级Java工程师','4','T3','1-T3','转正调薪'),
