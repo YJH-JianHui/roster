@@ -37,18 +37,12 @@ CREATE TABLE "employee" (
   "hometown_type"            TEXT,
   "marital_status"           TEXT,
   "native_place"             TEXT,
-  "birthplace"               TEXT,
-  "former_name"              TEXT,
-  "height"                   REAL,
-  "weight"                   REAL,
-  "blood_type"               TEXT,
   "id_card_authority"        TEXT,
   "id_card_issue_date"       TEXT,
   "id_card_expire_date"      TEXT,
   "current_status"           TEXT NOT NULL DEFAULT '在职',
   "phone"                    TEXT,
   "email_personal"           TEXT,
-  "email_work"               TEXT,
   "emergency_contact_name"   TEXT,
   "emergency_contact_relation" TEXT,
   "emergency_contact_phone"  TEXT,
@@ -69,7 +63,6 @@ CREATE TABLE "employee" (
   "current_district"               TEXT,
   "current_address_detail"         TEXT,
   "current_address_detail_extra"   TEXT,
-  "current_postal_code"            TEXT,
 
   "tenure_base_date"               TEXT,
   "hire_date"                      TEXT,
@@ -97,11 +90,8 @@ CREATE TABLE "employment_record" (
   "end_date"                 TEXT,
   "end_reason"               TEXT,
   "transfer_from_record_id"  INTEGER,
-  "contract_summary_type"    TEXT,
   "contract_expire_date"     TEXT,
-  "social_insurance_relation" TEXT,
   "non_compete_signed"       TEXT DEFAULT '否',
-  "non_compete_period"       TEXT,
   FOREIGN KEY ("id_card_no") REFERENCES "employee" ("id_card_no") ON DELETE CASCADE,
   FOREIGN KEY ("transfer_from_record_id") REFERENCES "employment_record" ("id") ON DELETE SET NULL,
   UNIQUE ("id_card_no", "start_date")
@@ -133,10 +123,8 @@ CREATE TABLE "education_record" (
   "degree_type"              TEXT,
   "degree_status"            TEXT,
   "school_type"              TEXT,
-  "is_985_211"               TEXT DEFAULT '否',
   "major"                    TEXT,
   "minor_major"              TEXT,
-  "research_direction"       TEXT,
   "study_duration"           REAL,
   "graduation_date"          TEXT,
   "diploma_no"               TEXT,
@@ -304,15 +292,15 @@ CREATE TABLE "form_appendix_col" (
 );
 
 -- ============================================================
--- 4. 视图（用 id_card_no 关联，去掉所有 employee_id）
+-- 4. 视图（删除相关字段）
 -- ============================================================
 CREATE VIEW vw_employee_profile AS
 SELECT
     e.id_card_no, e.photo_path AS photo, e.real_name AS name, e.gender,
     CAST((julianday('now') - julianday(e.birth_date || '-01')) / 365.25 AS INTEGER) AS age,
-    e.birth_date, e.ethnicity, e.native_place AS native, e.birthplace, e.former_name AS alias,
+    e.birth_date, e.ethnicity, e.native_place AS native,
     e.marital_status AS marital, e.political_status AS party, e.hometown_type AS domicile_type,
-    e.height, e.weight, e.blood_type, e.phone AS mobile, e.email_personal AS email, e.email_work,
+    e.phone AS mobile, e.email_personal AS email,
     e.emergency_contact_name AS emergency, e.emergency_contact_relation AS emergency_relation, e.emergency_contact_phone AS emergencyTel,
     e.current_status, e.id_card_no AS idNumber, e.id_card_authority, e.id_card_issue_date, e.id_card_expire_date,
 
@@ -322,7 +310,7 @@ SELECT
     emp.position_name AS position,
     emp.record_type,
 
-    -- ★ 核心修改：职级、职类、职级职类改为从薪酬调整记录表（scr）获取最新值
+    -- 职级、职类、职级职类从薪酬调整记录表（scr）获取最新值
     scr.job_level,
     scr.job_class,
     scr.job_level_class,
@@ -347,12 +335,12 @@ SELECT
     e.hire_date,
     e.pre_work_years,
 
-    emp.contract_expire_date, emp.contract_summary_type,
-    emp.social_insurance_relation, emp.non_compete_signed, emp.non_compete_period,
+    emp.contract_expire_date,
+    emp.non_compete_signed,
 
     edu.degree_level AS education, edu.degree_type AS degree, edu.degree_status,
-    edu.school_name AS school, edu.school_type, edu.is_985_211, edu.major,
-    edu.minor_major, edu.research_direction AS researchDir, edu.start_date AS edu_start_date,
+    edu.school_name AS school, edu.school_type, edu.major,
+    edu.minor_major, edu.start_date AS edu_start_date,
     edu.graduation_date AS gradTime, edu.study_duration AS edu_study_duration,
     edu.diploma_no, edu.degree_cert_no,
 
@@ -360,8 +348,7 @@ SELECT
     COALESCE(e.domicile_address_detail,'') || COALESCE(e.domicile_address_detail_extra,'') AS domicile_detail,
     e.domicile_hukou_type AS domicile_type_hukou, e.domicile_postal_code AS domicileZip,
     COALESCE(e.current_province,'') || COALESCE(e.current_city,'') ||
-    COALESCE(e.current_district,'') || COALESCE(e.current_address_detail,'') AS currentAddr,
-    e.current_postal_code AS currentZip
+    COALESCE(e.current_district,'') || COALESCE(e.current_address_detail,'') AS currentAddr
 FROM employee e
 LEFT JOIN education_record edu ON e.id_card_no = edu.id_card_no AND edu.is_highest = 1
 
@@ -372,7 +359,7 @@ LEFT JOIN employment_record emp ON emp.id = (
     ORDER BY start_date DESC LIMIT 1
 )
 
--- ★ 核心修改：关联薪酬调整记录表，取时间（period）最近的一条
+-- 关联薪酬调整记录表，取时间（period）最近的一条
 LEFT JOIN salary_change_record scr ON scr.rowid = (
     SELECT rowid FROM salary_change_record
     WHERE id_card_no = e.id_card_no
@@ -381,7 +368,7 @@ LEFT JOIN salary_change_record scr ON scr.rowid = (
 );
 
 -- ============================================================
--- 5. 表单配置数据（与原版完全一致）
+-- 5. 表单配置数据
 -- ============================================================
 INSERT INTO form_template (id, template_name, total_columns) VALUES (1, '员工个人信息登记表', 24);
 
@@ -391,15 +378,15 @@ INSERT INTO form_group (id, template_id, group_key, group_label, sort_order) VAL
   (3, 1, 'education', '最高学历信息', 30);
 
 INSERT INTO form_field (group_id, field_key, field_label, lc, vc, min_r, is_photo, sort_order) VALUES
-(1,'photo','照片',0,4,6,1,10),(1,'name','姓名',2,4,1,0,20),(1,'alias','曾用名',2,4,1,0,30),
+(1,'photo','照片',0,4,5,1,10),(1,'name','姓名',2,4,1,0,20),
 (1,'gender','性别',2,4,1,0,40),(1,'ethnicity','民族',2,4,1,0,50),(1,'birth_date','出生年月',2,4,1,0,60),
-(1,'native','籍贯',2,4,1,0,70),(1,'birthplace','出生地',2,4,1,0,80),(1,'party','政治面貌',2,4,1,0,90),
-(1,'marital','婚姻状况',2,4,1,0,100),(1,'domicile_type','户籍属性',2,4,1,0,110),(1,'blood_type','血型',2,4,1,0,120),
-(1,'height_weight','身高/体重',2,4,1,0,130),(1,'mobile','联系方式',2,4,1,0,140),(1,'email','个人邮箱',2,5,1,0,150),
-(1,'email_work','工作邮箱',2,5,1,0,160),(1,'emergency','紧急联系人',2,4,1,0,170),(1,'emergency_relation','与本人关系',2,4,1,0,180),
+(1,'native','籍贯',2,4,1,0,70),(1,'party','政治面貌',2,4,1,0,90),
+(1,'marital','婚姻状况',2,4,1,0,100),(1,'domicile_type','户籍属性',2,4,1,0,110),
+(1,'mobile','联系方式',2,4,1,0,140),(1,'email','个人邮箱',2,5,1,0,150),
+(1,'emergency','紧急联系人',2,4,1,0,170),(1,'emergency_relation','与本人关系',2,4,1,0,180),
 (1,'emergencyTel','紧急电话',2,4,1,0,190),(1,'idNumber','公民身份号码',3,9,1,0,200),(1,'id_card_authority','发证机关',3,9,1,0,210),
 (1,'id_card_issue_date','发证日期',3,9,1,0,220),(1,'id_card_expire_date','证件到期日',3,9,1,0,230),(1,'domicile','户籍地',3,9,1,0,240),
-(1,'domicile_detail','户口所在地详情',3,9,1,0,250),(1,'currentAddr','现住址',3,9,1,0,260),(1,'currentZip','现住址邮编',3,9,1,0,270);
+(1,'domicile_detail','户口所在地详情',3,9,1,0,250),(1,'currentAddr','现住址',3,9,1,0,260);
 
 INSERT INTO form_field (group_id, field_key, field_label, lc, vc, min_r, is_photo, sort_order) VALUES
 (2,'current_company','用工公司',3,9,1,0,10),(2,'labor_relation_company','劳动关系隶属',3,9,1,0,20),
@@ -410,15 +397,14 @@ INSERT INTO form_field (group_id, field_key, field_label, lc, vc, min_r, is_phot
 (2,'record_type','人员类型',2,4,1,0,110),
 (2,'position_start_date','当前岗位开始时间',3,3,1,0,120),(2, 'tenure_base_date', '司龄基准日', 2, 4, 1, 0, 125),
 (2, 'hire_date', '入职时间', 2, 4, 1, 0, 130),(2,'contract_expire_date','合同到期日',2,4,1,0,140),
-(2,'contract_summary_type','合同类型',2,4,1,0,150),(2,'social_insurance_relation','社保关系',2,4,1,0,160),
-(2,'non_compete_signed','是否签署《竞业限制协议》',6,6,1,0,170),(2,'non_compete_period','竞业限制期限',3,9,1,0,180);
+(2,'non_compete_signed','是否签署《竞业限制协议》',6,6,1,0,170);
 
 INSERT INTO form_field (group_id, field_key, field_label, lc, vc, min_r, is_photo, sort_order) VALUES
 (3,'education','学历',2,4,1,0,10),(3,'degree','学位',2,4,1,0,20),
 (3,'degree_status','学历学位状态',3,9,1,0,30),(3,'school','毕业院校',3,9,1,0,40),
-(3,'school_type','院校属性',2,4,1,0,50),(3,'is_985_211','是否985/211',3,3,1,0,60),
+(3,'school_type','院校属性',2,4,1,0,50),
 (3,'major','专业',3,9,1,0,70),(3,'minor_major','辅修专业',3,9,1,0,80),
-(3,'researchDir','研究方向',3,9,1,0,90),(3,'edu_start_date','入学时间',3,9,1,0,100),
+(3,'edu_start_date','入学时间',3,9,1,0,100),
 (3,'gradTime','毕业时间',2,4,1,0,110),(3,'edu_study_duration','学制（年）',2,4,1,0,120),
 (3,'diploma_no','毕业证书编号',3,9,1,0,130),(3,'degree_cert_no','学位证书编号',3,9,1,0,140);
 
@@ -483,20 +469,22 @@ INSERT INTO form_appendix_col (appendix_id, field_key, label, colspan, sort_orde
 
 INSERT INTO employee (
     id_card_no, real_name, gender, birth_date, ethnicity, political_status, hometown_type,
-    marital_status, native_place, birthplace, former_name, height, weight, blood_type,
+    marital_status, native_place,
     id_card_authority, id_card_issue_date, id_card_expire_date, current_status,
-    phone, email_personal, email_work,
+    phone, email_personal,
     emergency_contact_name, emergency_contact_relation, emergency_contact_phone, photo_path,
     domicile_province, domicile_city, domicile_district, domicile_address_detail, domicile_address_detail_extra, domicile_postal_code, domicile_hukou_type,
-    current_province, current_city, current_district, current_address_detail, current_address_detail_extra, current_postal_code,tenure_base_date, pre_work_years
+    current_province, current_city, current_district, current_address_detail, current_address_detail_extra,
+    tenure_base_date, pre_work_years
 ) VALUES (
     '530102198805151234','张伟','男','1988-05','汉族','中共党员','城镇',
-    '已婚','云南省昆明市','云南省昆明市','张小伟',175.5,70.2,'A',
+    '已婚','云南省昆明市',
     '昆明市公安局五华分局','2010-06-01','2030-06-01','在职',
-    '13888888888','zhangwei@gmail.com','zhangwei@dingcheng.com',
+    '13888888888','zhangwei@gmail.com',
     '王秀英','母子','13777777777','/uploads/avatars/zhangwei.png',
     '云南省', '昆明市', '五华区', '护国路', '某街道某社区12号', '650031', '城镇',
-    '云南省', '昆明市', '官渡区', '星耀路某公寓A栋602室', '近地铁站', '650200','2012-03-01', 1.5
+    '云南省', '昆明市', '官渡区', '星耀路某公寓A栋602室', '近地铁站',
+    '2012-03-01', 1.5
 );
 
 INSERT INTO employment_record (
@@ -505,8 +493,8 @@ INSERT INTO employment_record (
     position_name, job_level, job_class, job_level_class,
     salary_amount, change_reason,
     start_date, end_date, end_reason,
-    transfer_from_record_id, contract_summary_type, contract_expire_date,
-    social_insurance_relation, non_compete_signed, non_compete_period
+    transfer_from_record_id, contract_expire_date,
+    non_compete_signed
 ) VALUES
 (
     '530102198805151234','劳务派遣','关联公司A','关联公司A',
@@ -514,7 +502,7 @@ INSERT INTO employment_record (
     'Java开发工程师','5','T2','1-T1',
     6000.00,'首次入职',
     '2012-03-01','2014-06-30','转正调岗',
-    NULL,'劳务协议','2014-06-30','关联公司A','否','无'
+    NULL,'2014-06-30','否'
 ),
 (
     '530102198805151234','正式员工','昆明鼎承科技','昆明鼎承科技',
@@ -523,7 +511,7 @@ INSERT INTO employment_record (
     15000.00,'跨公司转入',
     '2014-07-01','2020-12-31','内部晋升',
     (SELECT id FROM employment_record WHERE id_card_no='530102198805151234' AND start_date='2012-03-01'),
-    '固定期限','2020-12-31','昆明鼎承科技','是','1年'
+    '2020-12-31','是'
 ),
 (
     '530102198805151234','正式员工','昆明鼎承科技','昆明鼎承科技',
@@ -532,7 +520,7 @@ INSERT INTO employment_record (
     35000.00,'内部晋升',
     '2021-01-01',NULL,NULL,
     (SELECT id FROM employment_record WHERE id_card_no='530102198805151234' AND start_date='2014-07-01'),
-    '无固定期限','2099-12-31','昆明鼎承科技','是','2年'
+    '2099-12-31','是'
 );
 
 INSERT INTO contract_record (id_card_no, seq, start_date, employment_record_id, contract_type, end_date, remark) VALUES
@@ -556,9 +544,9 @@ INSERT INTO address_record (id_card_no, address_type, province, city, district, 
 ('530102198805151234','户籍地','云南省','昆明市','五华区','护国路','某街道某社区12号','650031','城镇',1),
 ('530102198805151234','现住址','云南省','昆明市','官渡区','星耀路某公寓A栋602室','近地铁站','650200','非农业',1);
 
-INSERT INTO education_record (id_card_no, school_name, start_date, is_highest, degree_level, degree_type, degree_status, school_type, is_985_211, major, minor_major, research_direction, study_duration, graduation_date, diploma_no, degree_cert_no) VALUES
-('530102198805151234','云南大学','2006-09-01',0,'本科','学士','统招全日制','普通本科','是','软件工程','工商管理','基础软件开发',4.0,'2010-06-30','YD1001','XW1001'),
-('530102198805151234','电子科技大学','2016-09-01',1,'硕士','硕士','在职研究生','双一流','是','计算机科学','无','分布式计算',3.0,'2019-06-30','YD2001','XW2001');
+INSERT INTO education_record (id_card_no, school_name, start_date, is_highest, degree_level, degree_type, degree_status, school_type, major, minor_major, study_duration, graduation_date, diploma_no, degree_cert_no) VALUES
+('530102198805151234','云南大学','2006-09-01',0,'本科','学士','统招全日制','普通本科','软件工程','工商管理',4.0,'2010-06-30','YD1001','XW1001'),
+('530102198805151234','电子科技大学','2016-09-01',1,'硕士','硕士','在职研究生','双一流','计算机科学','无',3.0,'2019-06-30','YD2001','XW2001');
 
 INSERT INTO certificate_record (id_card_no, cert_name, cert_category, issue_date, cert_major, cert_level, cert_no, expire_date) VALUES
 ('530102198805151234','中级工程师','职称','2018-09-01','软件工程','中级','ZC201809001', NULL),
